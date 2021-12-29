@@ -33,6 +33,19 @@ int read_input(char input_file_name[128], CalculationInputData &calcdata){
 	calcdata.mass = calcdata.radius = calcdata.zsurf = calcdata.logg = calcdata.teff = 0.0;
 	calcdata.params = 0;
 
+	//We want to allow for comments to be added to the top of an input file
+	//These will be preceded by a "#" symbol
+	int startofline=ftell(input_file);
+	char chr = getc(input_file);
+	printf("%c\n", chr);
+	while(chr=='#' | chr=='\n'){
+		fgets(input_buffer, 128, input_file);
+		startofline = ftell(input_file);
+		chr = getc(input_file);
+	}
+	fseek(input_file, startofline, SEEK_SET);
+
+
 	//Now we shall extract info from the input file
 	fscanf(input_file, "Name:  %s\n", calculation_name);
 	calcdata.calcname = std::string(calculation_name);

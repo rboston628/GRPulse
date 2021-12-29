@@ -1,4 +1,7 @@
-Name:	PN1_m_0.6_R_1.3_0.0
+# calculate a post-newtonian polytrope, index n=1
+# the output can be compared to the table in accompanying paper
+
+Name:	PN1_m_0.6_R_1.3_1.0
 Model:	1pn	polytrope	1.0	10000
 Params: mass 0.6	radius 8282
 Units:	astro	

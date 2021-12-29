@@ -1,0 +1,14 @@
+# compare our 1pn frequencies in an n=1 polyrrope
+# to those tabulated by Cutler & Lindblom (1992) ApJ 385, 630-641
+# To compare to their 1pn frequencies, first multiply their column by sqrt(3/4)
+
+Name:	compare_CL_1992
+Model:	1pn polytrope	1.00	5000
+Params:	mass 1.4	radius 12.374
+Units:	astro
+Frequencies:	nonradial	0
+2,0
+3,0
+4,0
+5,0
+6,0

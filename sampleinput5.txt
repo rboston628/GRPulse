@@ -1,4 +1,9 @@
-Name:	test_MESA_hot
+# demonstrates how to call use a MESA model
+# this will read in the MESA file called `mesa_co_wd_cold.dat`
+# results will appear in output/test_MESA_cold/test_MESA_cold.txt
+# try editing to read the other MESA file
+
+Name:	test_MESA_cold
 Model:	newtonian MESA	mesa_co_wd_cold	4000
 Units:	CGS
 

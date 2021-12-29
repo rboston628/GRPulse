@@ -1,0 +1,22 @@
+# this sample output is to compare our GR Cowling frequencies
+# to those tabulated by Lindblom & Splinter (1990), ApJ 348, 198-202
+# Their Table 1, column w_{MVS}/w_k can be compared to this output
+# to make the comparison (see their footnote c),
+# their frequency must be multiplied by (k+1)*sqrt(3/4)
+
+# mass and radius are from their paper, just after their Eqn. 25
+
+Name:	compare_lindblom_splinter
+Model:	gr polytrope	1.0	10000
+Params:	mass 1.0	radius 10.18
+Units:	astro
+
+Frequencies:	cowling	0
+1,1
+1,2
+1,3
+1,4
+1,5
+1,10
+1,15
+1,20

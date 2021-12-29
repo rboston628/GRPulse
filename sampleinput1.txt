@@ -1,5 +1,11 @@
-Name:	PN0_m_0.6_R_1.3_0.0
-Model:	newtonian polytrope	0.0	10000
+# this sample input will compare our Newtonian output 
+# against the exact Pekeris formula for polytrope with n=0.0 
+# calculation will use 50,000 grid points 
+# the results will appear in output/pekeris_test/pekeris_test.txt
+
+
+Name:	pekeris_test
+Model:	newtonian polytrope	0.0	50000
 Params:	mass 0.6	radius 8282
 Units:	astro
 

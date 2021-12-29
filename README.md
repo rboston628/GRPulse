@@ -15,7 +15,7 @@ There is extensive [documentation](https://github.com/rboston628/GRPulse/blob/ma
 This code was written as part of my dissertation research, and several papers are planned.  
 The first paper, explaining this version of the code, is to be submitted to *Astrophysics Journal*.
 
-If you use this code for your research before official publication, cite tentatively as Boston, Dunlap, and Clemens (2021), or contact me for more complete information.
+If you use this code for your research before official publication, cite tentatively as Boston & Clemens (2022), or contact me for more complete information.
 
 ## Attribution
 If you adapt parts of this code into your own asteroseismology code, include attribution to Reece Boston and cite the above paper within a comment in the source code.
