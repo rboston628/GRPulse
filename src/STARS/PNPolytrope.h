@@ -78,12 +78,6 @@ private:
 	//lane-emden solution functions
 	enum VarNames {x=0, y,z,u,v,phi, numvar};
 	double **Y;
-//	double *x; //normalized radius
-//	double *y; //lane-emden solution (theta θ)
-//	double *z; //derivative, z=dy/dx
-//	double *u; //unitless g, u = dφ/dx
-//	double *v; //unitless gPN, v = dψ/dx
-//	double *φ; //unitless newtonian potential, Phi = (n+1)P0/rho0 φ
 	double *base; //= pow(y, n-1), used to speed of calculations of quantities
 	double *dydx; //need to store derivative separately
 	double φc0;// value of φ at center -- has to be derived from surface values

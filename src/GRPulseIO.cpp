@@ -35,19 +35,22 @@ int read_input(char input_file_name[128], CalculationInputData &calcdata){
 
 	//We want to allow for comments to be added to the top of an input file
 	//These will be preceded by a "#" symbol
+	// NOTE: comments can ONLY go at the top of an input file
 	int startofline=ftell(input_file);
+	int lines=0;
 	char chr = getc(input_file);
 	printf("%c\n", chr);
 	while(chr=='#' | chr=='\n'){
-		fgets(input_buffer, 128, input_file);
-		startofline = ftell(input_file);
+		if(chr=='#') fgets(input_buffer, 128, input_file);
 		chr = getc(input_file);
+		lines++;
 	}
 	fseek(input_file, startofline, SEEK_SET);
-
-
+	for(int line=0; line<lines; line++) fgets(input_buffer, 128, input_file);
+	
+	
 	//Now we shall extract info from the input file
-	fscanf(input_file, "Name:  %s\n", calculation_name);
+	fscanf(input_file, "Name: %s\n", calculation_name);
 	calcdata.calcname = std::string(calculation_name);
 	printf("calculation name: %s\n", calcdata.calcname.c_str());
 	
@@ -212,7 +215,7 @@ int echo_input(CalculationInputData &calcdata){
 	if( !(output_file = fopen(output_file_name, "w")) ){
 		//if an error occurs, try making the folder needed
 		char command[140]; 
-		sprintf(command, "mkdir -p ./output./%s", calcdata.calcname.c_str());
+		sprintf(command, "mkdir -p ./output/%s", calcdata.calcname.c_str());
 		system(command);
 		if( !(output_file = fopen(output_file_name, "w")) ){
 			printf("output file not found.\n");
@@ -622,6 +625,10 @@ void print_splash(FILE* output_file, char* title, int WIDTH){
 }
 
 
+//NOTE: this function has a problem and will always cause a seg fault
+// I had fixed it before, but inadvertently overwrote my fix of it
+// The issue has to do with deleting the k=0 mode
+//More concretely, it is related the index lastl
 int write_tidal_overlap(CalculationOutputData& calcdata){
 	printf("Writing tidal overlap coefficients...\n");fflush(stdout);
 	//open file to write output summary

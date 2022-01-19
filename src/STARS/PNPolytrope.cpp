@@ -157,7 +157,6 @@ PNPolytrope::PNPolytrope(double BigM, double BigR, double n, int L)
 	//continue adjusting the value of sigma until the surface redshift is correct
 	tracker = 0;
 	while(fabs( zsurf-f1.imag() ) > 1e-16  & tracker<100){
-	//while(fabs(1.+zsurf-1./sqrt(1.+2.*(n+1.)*sigma*φ[len-1])) > 1e-16  & tracker<100){
 		φc0  -= (Y[len-1][u]*Y[len-1][x] + Y[len-1][phi]);
 		sigma = setSigma(Y[len-1]);
 		RK4integrate(len, dx,1);
@@ -304,9 +303,6 @@ PNPolytrope::PNPolytrope(double n, double zsurf, int Len)
 		dxold = fabs(dxmin-dxmax);
 	}
 	//check that sigma, phi0 lead to correct surface values
-	//printf("target = \t%0.16le\n", target.real());
-	//printf("result = \t%0.16le\n", -sigma*z[len-1]*x[len-1]);
-	//printf("       = \t%0.16le\n",  sigma*u[len-1]*x[len-1]);
 	f1 = setZsurf(Y[len-1]);
 	printf("target = \t%0.16le\n", target.real());
 	printf("result = \t%0.16le\n", f1.real());
@@ -314,7 +310,6 @@ PNPolytrope::PNPolytrope(double n, double zsurf, int Len)
 	printf("sigma=%le\n", sigma);
 	RK4integrate(len, dx,1);
 	//check that end is at surface
-	// kappa = 1.3346e5;// cm^5/g/s^2
 	printf("sigma=%le\n", sigma);
 	printf("y1 = %le\n", Y[len-1][y]);
 	
@@ -394,13 +389,6 @@ PNPolytrope::PNPolytrope(double n, double sigma, int Len, const double dx)
 		RK4integrate(len, dx,1);
 		tracker++;
 	}
-	//RK4integrate(len, dx,1);
-	//while(fabs(1.+zsurf-1./sqrt(1.+2.*(n+1.)*sigma*u[len-1]*x[len-1])) > 1e-16  & tracker<100){
-	//	φc0  -= (u[len-1]*x[len-1] + φ[len-1]);
-	//	zsurf = fabs( 1./sqrt(1.-2.*(n+1.)*sigma*u[len-1]*x[len-1]) - 1. );
-	//	RK4integrate(len, dx,1);
-	//	tracker++;
-	//}
 
 	//set initial density, pressure
 	rho0 = 1.0;
@@ -438,7 +426,7 @@ PNPolytrope::~PNPolytrope(){
 }
 
 
-//  dz/dx
+//  dz/dx = d^2(y)/dx^2
 inline double PNPolytrope::deriv1PN(double s, double yy[numvar]){
 	std::complex<double> YN(yy[y],0.0);
 	YN = pow(YN,n);
@@ -451,8 +439,9 @@ double PNPolytrope::setSigma(double ysurface[numvar]){
 }
 std::complex<double> PNPolytrope::setZsurf(double ysurface[numvar]){
 	return std::complex<double> (
-		1./sqrt(1.-2.*(n+1.)*sigma*ysurface[u]*ysurface[x])-1.,
-		1./sqrt(1.+2.*(n+1.)*sigma*ysurface[phi]          )-1.);
+		1./sqrt(1.+2.*(n+1.)*sigma*ysurface[phi]          )-1.,
+		1./sqrt(1.-2.*(n+1.)*sigma*ysurface[u]*ysurface[x])-1.
+	);//*/
 }
 
 void PNPolytrope::centerInit(double ycenter[numvar]){
@@ -476,15 +465,16 @@ void PNPolytrope::RK4step(double dx, double s, double yin[numvar], double yout[n
 		YCN = YC[y];
 		YCN = std::pow(YCN,n);
 		//K = dy = dx*(dy/dx)
-		K[y][a] =-dx*((1.+sigma*YC[y])*YC[u] + s*YC[v]); //dtheta/dxo
+		K[y][a] = -dx*((1.+sigma*YC[y])*YC[u] + s*YC[v]); //dtheta/dxi
 		K[z][a] = dx*deriv1PN(s, YC);      //dz/dxi
 		K[u][a] = dx*(YCN.real() - 2.*YC[u]/YC[x]);       //du/dxi
 		K[v][a] = dx*(YCN.real()*( 3.*YC[y] - 2.*(n+1.)*YC[phi] ) - 2.*YC[v]/YC[x] ); //dv/dxi
 		K[phi][a] = dx*YC[u];                          //dphi/dx
 		//these boundary values at bottom of 1pnpolytrope1.nb
-		if(YC[x]==0) {K[z][a]=-dx/3.0*(1.0 + 4.0*sigma - 2.*(n+1.)*sigma*φc0);
-				   K[u][a]= dx/3.0; K[v][a]=dx*(1.-2./3.*(n+1.)*φc0); 
-				   K[y][a]=K[phi][0]=0.0;}
+		if(YC[x]==0) {
+			K[z][a] =-dx/3.0*(1.0 + 4.0*sigma - 2.*(n+1.)*sigma*φc0);
+			K[u][a] = dx/3.0; K[v][a]=dx*(1.-2./3.*(n+1.)*φc0); 
+			K[y][a] =K[phi][a]=0.0;}
 		//calculate intermediate positions using previous shift vectors
 		YC[x] = yin[x] + B[a]*dx;   //radius xi
 		for(int b=1; b<numvar; b++)
@@ -617,7 +607,7 @@ double PNPolytrope::getAstar(int X, double GamPert){
 double PNPolytrope::getU(int X){
 	// U = 4piG*r*(rho + 3P - 2 rho*Phi)/g
 	if(X==0) return 3.0;
-	return Y[X][x]*base[X]*Y[X][y]*(1.+sigma*(3.*Y[X][y]-2.*(n+1.)*Y[X][phi]))/(Y[X][u]+sigma*Y[X][v]);
+	return Y[X][x]*pow(Y[X][y],n)*(1.+sigma*(3.*Y[X][y]-2.*(n+1.)*Y[X][phi]))/(Y[X][u]+sigma*Y[X][v]);
 //	return x[X]*base[X]*y[X]/u[X];
 }
 
@@ -654,57 +644,7 @@ double PNPolytrope::getXproper(int X){
 double PNPolytrope::Radius(){return rad(len-1);}	//total radius
 double PNPolytrope::Mass(){return mr(len-1);}		//total mass
 
-double PNPolytrope::SSR(){
-	double checkEuler=0.0, checkPoiss=0.0, checkPsi=0.0;
-		
-	//sum up errors in equations
-	double r = 0.0;
-	double R = Radius();
-	double d2Phi=0.0;
-	double d2Psi=0.0;
-	double e1, e2, e3, n1, n2, n3;
-	char txtname[100], outname[100];
-	for(int X=3; X<len-4; X++){
-		r = rad(X);
-		//Poisson equation for Phi
-		double  h=rad(X+1)-rad(X);
-		double  b3=dPhidr(X-3),
-				b2=dPhidr(X-2),
-				b1=dPhidr(X-1),
-				a1=dPhidr(X+1),
-				a2=dPhidr(X+2),
-				a3=dPhidr(X+3);
-		d2Phi = (45.*a1-9.*a2+a3-45.*b1+9.*b2-b3)/(60.*h);
-		e1 = fabs( 4.*m_pi*rho(X)*r - 2.*dPhidr(X) - d2Phi*r );
-		n1 = fabs( 4.*m_pi*rho(X)*r ) + fabs( 2.*dPhidr(X) ) + fabs(d2Phi*r);
-		//Euler equation
-		e2 = fabs( dPdr(X)
-				+ dPhidr(X)*(rho(X)+P(X))
-				+ rho(X)*dPsidr(X) );
-		n2 = fabs( dPdr(X) )
-				+ fabs(dPhidr(X)*(rho(X)+P(X)))
-				+ fabs(rho(X)*dPsidr(X));
-		// Equation for Psi
-		b3=dPsidr(X-3);
-		b2=dPsidr(X-2);
-		b1=dPsidr(X-1);
-		a1=dPsidr(X+1);
-		a2=dPsidr(X+2);
-		a3=dPsidr(X+3);
-		d2Psi = (45.*a1-9.*a2+a3-45.*b1+9.*b2-b3)/(60.*h);
-		e3 = fabs( 12.*m_pi*P(X) - 8.*m_pi*rho(X)*Phi(X) - 2.*dPsidr(X)/r - d2Psi ); 
-		n3 = fabs( 12.*m_pi*P(X) )
-				+ fabs( 8.*m_pi*rho(X)*Phi(X) )
-				+ fabs(2.*dPsidr(X)/r) + fabs(d2Psi);
-		e1 /= n1;
-		e2 /= n2;
-		e3 /= n3;
-		checkPoiss += e1*e1;
-		checkEuler += e2*e2;
-		checkPsi   += e3*e3;	
-	}
-	return sqrt((checkPoiss + checkEuler + checkPsi)/double(3*len));
-}
+
 
 // **************************  CENTRAL BOUNDARY **************************************
 // the following provide coefficients for central expansions of A*, Vg, U, c1 in trms of x=r/R
@@ -856,8 +796,8 @@ void PNPolytrope::getUSurface(    double *Us, int& maxPow){
 		if(maxPow>=1) Us[1] = x12*(1.-2.*sigma*φs[0])*(igs[1]-igs[0])
 							 + sigma*x12*(3.*θs[1]-2.*φs[1])*igs[0];
 		if(maxPow>=2) Us[2] = x12*(1.-2.*sigma*φs[0])*(igs[2]-igs[1])
-							 + sigma*x12*(3.*θs[1]-2.*φs[1])*(igs[1]-igs[0])
-							 + sigma*x12*(-2.5*x12 - 5.*φs[1])*igs[0];
+							 + sigma*x12*(3.*θs[1]-2.*φs[1])*(igs[1])
+							 + sigma*x12*(-2.5*x12 )*igs[0];
 	}
 	else if(n==1){
 		if(maxPow>=0) Us[0] = 0.0;
@@ -896,6 +836,131 @@ void PNPolytrope::getPhiSurface(  double *ps, int& maxPow){
 	if(maxPow>=2) ps[2]  = φs[2]/φs[0];
 	//pattern would continue for higher terms...
 	if(maxPow> 2) maxPow = 2;
+}
+
+
+//method to print pertinent values of star to .txt, and plot them in gnuplot
+void PNPolytrope::writeStar(char *c){
+	//create names for files to be opened
+	char pathname[256];
+	char rootname[256];
+	char txtname[256];
+	char outname[256];
+	if(c==NULL)	sprintf(pathname, "./out/%s", name);
+	else{
+		sprintf(pathname, "./%s/star/", c);
+	}
+	sprintf(txtname, "%s/%s.txt", pathname, name);
+	sprintf(outname, "%s/%s.png", pathname, name);
+
+	FILE *fp;
+	if(!(fp = fopen(txtname, "w")) ){
+		char command[256];
+		sprintf(command, "mkdir -p %s", pathname);
+		system(command);
+		fp = fopen(txtname, "w");
+	}
+	
+	
+	//print results to text file
+	// radius rho pressure gravity
+	double irc=1./rho(0), ipc=1./P(0), R=Radius(), ig=1./dPhidr(length()-1), iPN=1./dPsidr(length()-1);
+	double iq = 1./(dPhidr(length()-1)+dPsidr(length()-1)), MT = Mass();
+	for(int X=0; X< length(); X++){
+		fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
+			rad(X)/R, 
+			rho(X)*irc, -drhodr(X)*irc*R, 
+			P(X)*ipc, -dPdr(X)*ipc*R, 
+			mr(X)/MT, 
+			(dPhidr(X)+dPsidr(X))*iq,
+			Phi(X));
+	}
+	fclose(fp);
+	//plot file in png in gnuplot, and open png
+	FILE *gnuplot = popen("gnuplot -persist", "w");
+	fprintf(gnuplot, "reset\n");
+	fprintf(gnuplot, "set term png size 1600,800\n");
+	fprintf(gnuplot, "set samples %d\n", length());
+	fprintf(gnuplot, "set output '%s'\n", outname);
+	char title[256]; graph_title(title);
+	fprintf(gnuplot, "set title 'Profile for %s'\n", title);
+	fprintf(gnuplot, "set xlabel 'r/R'\n");
+	fprintf(gnuplot, "set ylabel 'rho/rho_c, P/P_c, m/M, g/g_S'\n");
+	fprintf(gnuplot, "plot ");
+	fprintf(gnuplot, " '%s' u 1:2 w l t 'rho'", txtname);
+	fprintf(gnuplot, ", '%s' u 1:4 w l t 'P'", txtname);
+	fprintf(gnuplot, ", '%s' u 1:6 w l t 'm'", txtname);
+	fprintf(gnuplot, ", '%s' u 1:7 w l t 'q'", txtname);
+	fprintf(gnuplot, "\n");
+	fprintf(gnuplot, "reset\n");
+	fprintf(gnuplot, "set term png size 1600,800\n");
+	fprintf(gnuplot, "set samples %d\n", length());
+	fprintf(gnuplot, "set output '%s/%s.png'\n", pathname, "phi");
+	fprintf(gnuplot, "set title 'Newtonian Potential for %s'\n", title);
+	fprintf(gnuplot, "set xlabel 'r/R'\n");
+	fprintf(gnuplot, "set ylabel 'Phi'\n");
+	fprintf(gnuplot, "plot ");
+	fprintf(gnuplot, " '%s' u 1:8 w l t 'Phi'", txtname);
+	fprintf(gnuplot, "\n");
+	
+	//print the pulsation coeffcients frequency
+	sprintf(txtname, "%s/coefficients.txt", pathname);
+	sprintf(outname, "%s/coefficients.png", pathname);
+	fp  = fopen(txtname, "w");
+	int maxpow=2;
+	double A,U,V,C, read[2], x0 = Y[1][x]/Y[len-1][x];
+	getAstarCenter(read, maxpow, 5./3.);
+	A = read[0] + read[1]*x0*x0;
+	getVgCenter(read, maxpow, 5./3.);
+	V = read[0] + read[1]*x0*x0;
+	getC1Center(read, maxpow);
+	C = read[0] + read[1]*x0*x0;
+	getUCenter(read, maxpow);
+	U = read[0] + read[1]*x0*x0;
+	fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
+		x0, A, U, V, C);
+	for(int X=1; X< length()-1; X++){
+		fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
+			Y[X][x]/Y[len-1][x],
+			getAstar(X, 5./3.),
+			getU(X),
+			getVg(X, 5./3.),
+			getC(X)
+		);
+	}
+	double reads[3], t1 = 1.-Y[len-2][x]/Y[len-1][x];
+	getAstarSurface(reads, maxpow, 5./3.);
+	A = reads[0]/t1 + reads[1] + reads[2]*t1;
+	getVgSurface(reads, maxpow, 5./3.);
+	V = reads[0]/t1 + reads[1] + reads[2]*t1;
+	getC1Surface(reads, maxpow);
+	C = reads[0] + reads[1]*t1 + reads[2]*t1*t1;
+	getUSurface(reads, maxpow);
+	U = reads[0] + reads[1]*t1 + reads[2]*t1*t1;
+	fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
+		1.0, A, U, V, C);
+	fclose(fp);	
+	//plot file in png in gnuplot
+	//gnuplot = popen("gnuplot -persist", "w");
+	fprintf(gnuplot, "reset\n");
+	fprintf(gnuplot, "set term png size 800,800\n");
+	fprintf(gnuplot, "set samples %d\n", length());
+	fprintf(gnuplot, "set output '%s'\n", outname);
+	fprintf(gnuplot, "set title 'Pulsation Coefficients for %s'\n", title);
+	//fprintf(gnuplot, "set xlabel 'log_{10} r/R'\n");
+	fprintf(gnuplot, "set xlabel 'r/R'\n");
+	fprintf(gnuplot, "set ylabel 'A*, U, V_g, c_1'\n");
+	fprintf(gnuplot, "set logscale y\n");
+	fprintf(gnuplot, "plot '%s' u 1:2 w l t 'A*'", txtname);
+	fprintf(gnuplot, ",    '%s' u 1:3 w l t 'U'", txtname);
+	fprintf(gnuplot, ",    '%s' u 1:4 w l t 'V_g'", txtname);
+	fprintf(gnuplot, ",    '%s' u 1:5 w l t 'c_1'", txtname);
+	fprintf(gnuplot, "\n");
+	
+	fprintf(gnuplot, "exit\n");
+	pclose(gnuplot);
+	
+	printCoefficients(pathname);
 }
 
 void PNPolytrope::printCoefficients(char *c){
@@ -1054,129 +1119,56 @@ void PNPolytrope::printCoefficients(char *c){
 	pclose(gnuplot);
 }
 
-
-//method to print pertinent values of star to .txt, and plot them in gnuplot
-void PNPolytrope::writeStar(char *c){
-	//create names for files to be opened
-	char pathname[256];
-	char rootname[256];
-	char txtname[256];
-	char outname[256];
-	if(c==NULL)	sprintf(pathname, "./out/%s", name);
-	else{
-		sprintf(pathname, "./%s/star/", c);
+double PNPolytrope::SSR(){
+	double checkEuler=0.0, checkPoiss=0.0, checkPsi=0.0;
+		
+	//sum up errors in equations
+	double r = 0.0;
+	double R = Radius();
+	double d2Phi=0.0;
+	double d2Psi=0.0;
+	double e1, e2, e3, n1, n2, n3;
+	char txtname[100], outname[100];
+	for(int X=3; X<len-4; X++){
+		r = rad(X);
+		//Poisson equation for Phi
+		double  h=rad(X+1)-rad(X);
+		double  b3=dPhidr(X-3),
+				b2=dPhidr(X-2),
+				b1=dPhidr(X-1),
+				a1=dPhidr(X+1),
+				a2=dPhidr(X+2),
+				a3=dPhidr(X+3);
+		d2Phi = (45.*a1-9.*a2+a3-45.*b1+9.*b2-b3)/(60.*h);
+		e1 = fabs( 4.*m_pi*rho(X)*r - 2.*dPhidr(X) - d2Phi*r );
+		n1 = fabs( 4.*m_pi*rho(X)*r ) + fabs( 2.*dPhidr(X) ) + fabs(d2Phi*r);
+		//Euler equation
+		e2 = fabs( dPdr(X)
+				+ dPhidr(X)*(rho(X)+P(X))
+				+ rho(X)*dPsidr(X) );
+		n2 = fabs( dPdr(X) )
+				+ fabs(dPhidr(X)*(rho(X)+P(X)))
+				+ fabs(rho(X)*dPsidr(X));
+		// Equation for Psi
+		b3=dPsidr(X-3);
+		b2=dPsidr(X-2);
+		b1=dPsidr(X-1);
+		a1=dPsidr(X+1);
+		a2=dPsidr(X+2);
+		a3=dPsidr(X+3);
+		d2Psi = (45.*a1-9.*a2+a3-45.*b1+9.*b2-b3)/(60.*h);
+		e3 = fabs( 12.*m_pi*P(X) - 8.*m_pi*rho(X)*Phi(X) - 2.*dPsidr(X)/r - d2Psi ); 
+		n3 = fabs( 12.*m_pi*P(X) )
+				+ fabs( 8.*m_pi*rho(X)*Phi(X) )
+				+ fabs(2.*dPsidr(X)/r) + fabs(d2Psi);
+		e1 /= n1;
+		e2 /= n2;
+		e3 /= n3;
+		checkPoiss += e1*e1;
+		checkEuler += e2*e2;
+		checkPsi   += e3*e3;	
 	}
-	sprintf(txtname, "%s/%s.txt", pathname, name);
-	sprintf(outname, "%s/%s.png", pathname, name);
-
-	FILE *fp;
-	if(!(fp = fopen(txtname, "w")) ){
-		char command[256];
-		sprintf(command, "mkdir -p %s", pathname);
-		system(command);
-		fp = fopen(txtname, "w");
-	}
-	
-	
-	//print results to text file
-	// radius rho pressure gravity
-	double irc=1./rho(0), ipc=1./P(0), R=Radius(), ig=1./dPhidr(length()-1), iPN=1./dPsidr(length()-1);
-	double iq = 1./(dPhidr(length()-1)+dPsidr(length()-1)), MT = Mass();
-	for(int X=0; X< length(); X++){
-		fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
-			rad(X)/R, 
-			rho(X)*irc, -drhodr(X)*irc*R, 
-			P(X)*ipc, -dPdr(X)*ipc*R, 
-			mr(X)/MT, 
-			(dPhidr(X)+dPsidr(X))*iq,
-			Phi(X));
-	}
-	fclose(fp);
-	//plot file in png in gnuplot, and open png
-	FILE *gnuplot = popen("gnuplot -persist", "w");
-	fprintf(gnuplot, "reset\n");
-	fprintf(gnuplot, "set term png size 1600,800\n");
-	fprintf(gnuplot, "set samples %d\n", length());
-	fprintf(gnuplot, "set output '%s'\n", outname);
-	char title[256]; graph_title(title);
-	fprintf(gnuplot, "set title 'Profile for %s'\n", title);
-	fprintf(gnuplot, "set xlabel 'r/R'\n");
-	fprintf(gnuplot, "set ylabel 'rho/rho_c, P/P_c, m/M, g/g_S'\n");
-	fprintf(gnuplot, "plot ");
-	fprintf(gnuplot, " '%s' u 1:2 w l t 'rho'", txtname);
-	fprintf(gnuplot, ", '%s' u 1:4 w l t 'P'", txtname);
-	fprintf(gnuplot, ", '%s' u 1:6 w l t 'm'", txtname);
-	fprintf(gnuplot, ", '%s' u 1:7 w l t 'q'", txtname);
-	fprintf(gnuplot, "\n");
-	fprintf(gnuplot, "reset\n");
-	fprintf(gnuplot, "set term png size 1600,800\n");
-	fprintf(gnuplot, "set samples %d\n", length());
-	fprintf(gnuplot, "set output '%s/%s.png'\n", pathname, "phi");
-	fprintf(gnuplot, "set title 'Newtonian Potential for %s'\n", title);
-	fprintf(gnuplot, "set xlabel 'r/R'\n");
-	fprintf(gnuplot, "set ylabel 'Phi'\n");
-	fprintf(gnuplot, "plot ");
-	fprintf(gnuplot, " '%s' u 1:8 w l t 'Phi'", txtname);
-	fprintf(gnuplot, "\n");
-	
-	//print the pulsation coeffcients frequency
-	sprintf(txtname, "%s/coefficients.txt", pathname);
-	sprintf(outname, "%s/coefficients.png", pathname);
-	fp  = fopen(txtname, "w");
-	int maxpow=2;
-	double A,U,V,C, read[2], x0 = Y[1][x]/Y[len-1][x];
-	getAstarCenter(read, maxpow, 5./3.);
-	A = read[0] + read[1]*x0*x0;
-	getVgCenter(read, maxpow, 5./3.);
-	V = read[0] + read[1]*x0*x0;
-	getC1Center(read, maxpow);
-	C = read[0] + read[1]*x0*x0;
-	getUCenter(read, maxpow);
-	U = read[0] + read[1]*x0*x0;
-	fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
-		x0, A, U, V, C);
-	for(int X=1; X< length()-1; X++){
-		fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
-			Y[X][x]/Y[len-1][x],
-			getAstar(X, 5./3.),
-			getU(X),
-			getVg(X, 5./3.),
-			getC(X)
-		);
-	}
-	double reads[3], t1 = 1.-Y[len-2][x]/Y[len-1][x];
-	getAstarSurface(reads, maxpow, 5./3.);
-	A = reads[0]/t1 + reads[1] + reads[2]*t1;
-	getVgSurface(reads, maxpow, 5./3.);
-	V = reads[0]/t1 + reads[1] + reads[2]*t1;
-	getC1Surface(reads, maxpow);
-	C = reads[0] + reads[1]*t1 + reads[2]*t1*t1;
-	getUSurface(reads, maxpow);
-	U = reads[0] + reads[1]*t1 + reads[2]*t1*t1;
-	fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
-		1.0, A, U, V, C);
-	fclose(fp);	
-	//plot file in png in gnuplot
-	//gnuplot = popen("gnuplot -persist", "w");
-	fprintf(gnuplot, "reset\n");
-	fprintf(gnuplot, "set term png size 800,800\n");
-	fprintf(gnuplot, "set samples %d\n", length());
-	fprintf(gnuplot, "set output '%s'\n", outname);
-	fprintf(gnuplot, "set title 'Pulsation Coefficients for %s'\n", title);
-	//fprintf(gnuplot, "set xlabel 'log_{10} r/R'\n");
-	fprintf(gnuplot, "set xlabel 'r/R'\n");
-	fprintf(gnuplot, "set ylabel 'A*, U, V_g, c_1'\n");
-	fprintf(gnuplot, "set logscale y\n");
-	fprintf(gnuplot, "plot '%s' u 1:2 w l t 'A*'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:3 w l t 'U'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:4 w l t 'V_g'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:5 w l t 'c_1'", txtname);
-	fprintf(gnuplot, "\n");
-	
-	fprintf(gnuplot, "exit\n");
-	pclose(gnuplot);
-	
-	printCoefficients(pathname);
+	return sqrt((checkPoiss + checkEuler + checkPsi)/double(3*len));
 }
 
 #endif

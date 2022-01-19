@@ -557,8 +557,8 @@ double PNChandrasekharWD::Schwarzschild_A(int X, double GamPert){
 
 double PNChandrasekharWD::getAstar(int X, double GamPert){
 	if(GamPert==0.0) return 0.0;
-	else        	 return x[X]*dx[X]*(8.*pow(x[X],4)/(f[X]*y[X]*GamPert)
-							 -3.*pow(x[X],2)*( 1.+8.*sigma*(y[X]-1.) )/(h[X]+sigma*f[X]) );	
+	else        	 return ( 8.*pow(x[X],4)/(f[X]*y[X]*GamPert)
+							  -3.*pow(x[X],2)*( 1.+8.*sigma*(y[X]-1.) )/(h[X]+sigma*f[X]) )*(xi[X]*dx[X]);	
 }
 
 double PNChandrasekharWD::getU(int X){

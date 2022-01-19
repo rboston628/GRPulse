@@ -224,8 +224,7 @@ double MESA::Schwarzschild_A(int X, double GamPert){
 }
 
 double MESA::getAstar(int X, double GamPert){
-	/*NOTE:  A* = -r*A, but rad is not dimensionless -- so must divide by R here*/
-	if(GamPert==0.0) return radi[X]*aSpline->interp(radi[X]);
+	if(GamPert==0.0) return aSpline->interp(radi[X]);
 	else             return radi[X]*pres->deriv(radi[X])/pres->interp(radi[X])/GamPert
 						  - radi[X]*dens->deriv(radi[X])/dens->interp(radi[X]);
 }
@@ -466,23 +465,17 @@ void MESA::setupSurface(){
 	V1[O+3] =  3.*ps[1]*ps[2] - pow(ps[1],3)*(1.+ps[1]) + 4.*ps[1]*ps[1]*ps[2]
 				-2.*ps[2]*ps[2] - 3.*ps[3] - 4.*ps[1]*ps[3] + 4.*ps[4];
 	// A*
-	//ds[1] /= ds[0];
-	//ds[2] /= ds[0];
-	//ds[3] /= ds[0];
-	//ds[4] /= ds[0];
 	//using the Brassard relation
 	double N21 = BVfq->interp(1.0);
 	A1[O-1] = 0.0;
 	A1[O+0] = N21*c1[0];
-	A1[O+1] = N21*c1[1];//-aSpline->deriv(radi[len-2]);//N21*c1[1];
+	A1[O+1] = N21*c1[1];
 	A1[O+2] = N21*c1[2];
 	A1[O+3] = N21*c1[3];
 	for(int i=1; i<=4; i++) { /*ds[i] *= ds[0];*/ ps[i]*=ps[0];}		
 }
 
 void MESA::getAstarSurface(double *As, int& maxPow, double g){
-//	double gam1 = (g==0.0 ? Gam1->interp(radi[len-2]) : g);
-
 	int O=1;
 	if(maxPow>= -1) As[O-1] = A1[O-1];
 	if(maxPow>=  0) As[O  ] = A1[O  ];

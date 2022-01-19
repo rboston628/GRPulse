@@ -345,8 +345,8 @@ int GRCowlingModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int
 	}
 	
 	//the old BC
-	ymode[y1][start] = ys[y1]*pow(r[len-2], 2-2*l);
-	ymode[y2][start] = ys[y2]*pow(r[len-2], 2-2*l);
+//	ymode[y1][start] = ys[y1]*pow(r[len-2], 2-2*l);
+//	ymode[y2][start] = ys[y2]*pow(r[len-2], 2-2*l);
 	
 	return start;
 }//*/

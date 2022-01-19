@@ -114,7 +114,10 @@ public:
 	void getC1Surface(double*, int&);
 	void getNuSurface(double*, int&);
 	void getLambdaSurface(double*, int&);
+	void writeStar(char *c=NULL);
 	double SSR();
+	private:
+//	void printCoefficients(char *c);
 };
 
 #endif

@@ -11,7 +11,10 @@
 double compare_JCD(double, int, int, double);
 double compare_Pekeris(double, int, int, double);
 
-//the following arrays come from tables in JCD-DJM paper, and are used for fast comparisons
+// the following arrays come from tables in JCD-DJM paper:
+// 		Christensen-Dalsgaard & Mullan (1994), MNRAS 270, 921-935
+// these were very useful for testing in early stages of the code
+
 //columns l=2 and l=3 from Table 1 in JCD-DJM paper
 const double JCD1_5[3][35] = {
 	{256.8042, 424.9943, 582.9618, 736.2824, 886.9146, 1035.8195, 1183.5437, 1330.4248, 1476.6835, 1622.4704,
@@ -604,14 +607,12 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 			data.k[nextmode] = kl[i];
 			data.w[nextmode] = sqrt(w2try[i]);
 			if(sqrt(w2try[i])<0.0) data.w[nextmode] = -sqrt(-w2try[i]);
-			
 			data.mode[nextmode] = modetry[i];
 			//freq0 converts to rad/s, divide by 2pi to get frequency in Hertz
 			data.f[nextmode] = data.freq0*data.w[nextmode]/(twopi);
 			//period in seconds is 1/f
 			data.period[nextmode] = 1./data.f[nextmode];
-			modetry[i]->SSR();
-			data.mode_SSR[nextmode] = modetry[i]->SSR();
+			data.mode_SSR[nextmode] = modetry[i]->SSR();			
 			nextmode++;
 			data.mode_done++;
 		}

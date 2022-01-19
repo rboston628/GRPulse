@@ -239,7 +239,7 @@ void PNNonradialModeDriver::setupBoundaries() {
 	A41 =   As[O-1]*Us[0]*(1.+2.*z*betas[0]/Gam1-2.*z*phis[0]);
 	A42 =  Vgs[O-1]*Us[0]*(1.+2.*z*betas[0]/Gam1+2.*z*phis[0]);
 	A43 = -Vgs[O-1]*Us[0]*(1.+2.*z*betas[0]/Gam1-2.*z*phis[0]);
-	A4z1 = z*Vgs[O-1]*Us[0];
+	A4z1 = Vgs[O-1]*Us[0]*z;
 	Az21 = -2.* As[O-1]*Us[0]*phis[0];
 	Az22 = -2.*Vgs[O-1]*Us[0]*phis[0] + 3.*Vgs[O-1]*Us[0]*betas[0];
 	Az23 =  2.*Vgs[O-1]*Us[0]*phis[0] - 5.*Vgs[O-1]*Us[0]*betas[0];
@@ -274,7 +274,7 @@ void PNNonradialModeDriver::setupBoundaries() {
 		A41 +=  As[O-j]*Us[j];
 		A42 += Vgs[O-j]*Us[j];
 		A43 -= Vgs[O-j]*Us[j];
-		A4z1+= Vgs[O-j]*Us[j];
+		A4z1+= Vgs[O-j]*Us[j]*z;
 		for(int m=0; m<=1-j; m++){
 			A41 += 2.* As[O-j-m]*Us[j]*z*(betas[m]/Gam1-phis[m]);
 			A42 += 2.*Vgs[O-j-m]*Us[j]*z*(betas[m]/Gam1+phis[m]);
@@ -313,7 +313,7 @@ void PNNonradialModeDriver::setupBoundaries() {
 		A41 +=   As[O+1-j]*Us[j];
 		A42 +=  Vgs[O+1-j]*Us[j];
 		A43 -=  Vgs[O+1-j]*Us[j];
-		A4z1 += Vgs[O+1-j]*Us[j];
+		A4z1 += Vgs[O+1-j]*Us[j]*z;
 		for(int m=0; m<=2-j; m++){
 			A41 += 2.* As[O+1-j-m]*Us[j]*z*(betas[m]/Gam1-phis[m]);
 			A42 += 2.*Vgs[O+1-j-m]*Us[j]*z*(betas[m]/Gam1+phis[m]);
@@ -343,7 +343,7 @@ void PNNonradialModeDriver::setupBoundaries() {
 	A41  = Usn*As[O]*(1.+betas[0]/Gam1) + Usn*As[O-1]*betas[1]/Gam1;
 	A42  = Usn*( Vgs[O]*(1.+betas[0]/Gam1+4.*z*phis[0]) + Vgs[O-1]*(betas[1]/Gam1+4.*z*phis[1]) );
 	A43  =-Usn*(Vgs[O]+Vgs[O]*betas[0]/Gam1+Vgs[O-1]*betas[1]/Gam1);
-	A4z1 = 0.0;//z*Usn*Vgs[O];
+	A4z1 = z*Usn*Vgs[O];
 	Az21 =-2.*Usn*(As[O]*phis[0]+As[O-1]*phis[1]);
 	Az22 = Usn*(-2.*Vgs[O]*phis[0]-2.*Vgs[O-1]*phis[1]);
 	Az23 = Usn*(+2.*Vgs[O]*phis[0]+2.*Vgs[O-1]*phis[1]);
@@ -442,9 +442,8 @@ int PNNonradialModeDriver::CentralBC(double **ymode, double *y0, double omeg2, i
 		{-Ac2+omeg2*cc[1] - 12.*z*omeg2/L2 + 4.*z*Ac2*phic0,
 			Ac2 - Uc2 - 4.*z*Vgc2*betac0, -Ac2+4.*z*Ac2*phic0, -4.*z*omeg2/L2, z*Ac2,0,0,z*Ac2},
 		{0,0,-Uc2,0,0,0,0,0},
-		{3.*Ac2*(1.+2.*(betac0/Gam1-phic0)), 3.*Vgc2*(1.+2.*(betac0/Gam1+phic0)),
-			-3.*Vgc2*(1.+2.*(betac0/Gam1-phic0)), -Uc2, 3.*z*Vgc2, 0,0,  3.*z*Vgc2},
-//		{3.*Ac2, 3.*Vgc2, -3.*Vgc2, -Uc2, 0,0,0,0},
+		{3.*Ac2*(1.+2.*z*(betac0/Gam1-phic0)), 3.*Vgc2*(1.+2.*z*(betac0/Gam1+phic0)),
+			-3.*Vgc2*(1.+2.*z*(betac0/Gam1-phic0)), -Uc2, 3.*z*Vgc2, 0,0,  3.*z*Vgc2},
 		{0,0,0,0,-Uc2,0,0,0},
 		{-6.*Ac2*phic0, 9.*Vgc2*betac0-6.*Vgc2*phic0, omeg2-15.*Vgc2*betac0+6.*Vgc2*phic0, 0,0,-Uc2,0,0},
 		{0,0,-4.*omeg2,0,0,0,-Uc2,0},
@@ -519,8 +518,8 @@ int PNNonradialModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, i
 			}
 			Am1[i][i] += n_surface+1.;
 		}
-		AN[7][0] *= omeg2/double(l*l+l);
-		AN[1][0] -= AN[7][0];
+		AN[z5][y1] *= omeg2/double(l*l+l);
+		AN[y2][y1] -= AN[z5][y1];
 		for(int i=0;i<num_var;i++){
 			RHS[i] = 0.0;
 			for(int j=0;j<num_var;j++){
@@ -569,7 +568,7 @@ double PNNonradialModeDriver::SSR(double omega2, int l, ModeBase* mode) {
 	double e1,e2,e3;
 	double n1,n2,n3;
 	double d2DPhi, difxi, dDP;
-	double Phi1 = -star->Radius()*star->dPhidr(len_star-1);
+	double Phi1 = star->Phi(len_star-1);
 	for(int X=6; X<len-7; X++){
 		int XX = 2*X;
 		//stellar variables, to simplify equations
@@ -604,14 +603,7 @@ double PNNonradialModeDriver::SSR(double omega2, int l, ModeBase* mode) {
 				- DPsi*rho
 				-4.*r*freq*rho*DWH
 			)/(P*G1*(cee2+2.*Phi));
-		//(
-		//		-2.*P*DPhi*rho - 4.*r*freq*DWH*rho*rho - DPsi*rho*rho
-		//		+2.*P*rho*chi - 4.*rho*rho*Phi*chi + P*xi*dPdr
-		//	)/(cee2*P*G1) + (
-		//		rho*rho*(chi-DPhi) + xi*rho*dPdr - P*G1*xi*drhodr
-		//)/(P*G1);
-		double DP = G1*P/(rho+P/cee2)*Drho + G1*P*xi*A;//*/
-		
+		double DP = G1*P/(rho+P/cee2)*Drho + G1*P*xi*A;
 		
 		//calculate numerical derivatives
 		double b3,b2,b1,a1,a2,a3, h1;
@@ -657,17 +649,15 @@ double PNNonradialModeDriver::SSR(double omega2, int l, ModeBase* mode) {
 				+ xi*(drhodr+dPdr/cee2-2.*drhodr*Phi/cee2-2.*rho*g/cee2)
 				+ (rho+P/cee2-2.*rho*Phi/cee2)*( 2.*xi/r + difxi - L2*pow(r,-2)/freq2*chi )		
 		);
-		n2 = fabs(Drho*(1.-2.*Phi/cee2)) + fabs(3.*rho*DPhi/cee2)
+		n2 = fabs(Drho) + fabs(2.*Drho*Phi/cee2) + fabs(3.*rho*DPhi/cee2)
 				+ fabs(xi*drhodr)+fabs(xi*dPdr/cee2)+2.*fabs(xi*drhodr*Phi/cee2) + 2.*fabs(xi*rho*g/cee2)
 				+ ( fabs(rho+P/cee2)+fabs(2.*rho*Phi)/cee2 )*( fabs(2.*xi/r)+fabs(difxi)+fabs(L2*pow(r,-2)/freq2*chi) )
 		;
 		//newton's equation -- the r component. The theta component defines chi
- 		e3 = fabs( -(rho+P-2.*rho*Phi)*freq2*xi + dDP + rho*dDPhi + g*Drho
- 				+ rho*dDPsi + Drho*gPN + 2.*Phi*dDP + 2.*dPdr*DPhi
- 				+ 4.*rho*freq*DWR + (2.*rho*Phi+P)*dDPhi + (2.*rho*DPhi+2.*Drho*Phi+DP)*g);
- 		n3 = ( fabs(rho+P)+fabs(2.*rho*Phi) )*fabs(freq2*xi) + fabs( dDP ) + fabs( g*Drho ) + fabs( rho*dDPhi ) 
- 				+ fabs(rho*dDPsi) + fabs(Drho*gPN) + fabs(2.*Phi*dDP)
- 				+ fabs(4.*rho*freq*DWR) + fabs(2.*rho*Phi+P)*fabs(dDPhi) + fabs(2.*Drho*Phi+DP)*fabs(g);
+		e3 = fabs( -(rho+P-4.*rho*Phi)*freq2*xi + dDP + rho*dDPhi + g*Drho
+ 				+ rho*dDPsi + Drho*gPN + P*dDPhi + DP*g + 4.*rho*freq*DWR );
+ 		n3 = ( fabs(rho+P)+fabs(4.*rho*Phi) )*fabs(freq2*xi) + fabs( dDP ) + fabs( rho*dDPhi ) + fabs( g*Drho )
+ 				+ fabs(rho*dDPsi) + fabs(Drho*gPN) + fabs(P*dDPhi) + fabs(DP*g) + fabs(4.*rho*freq*DWR);
 		//normalize residuals
 		e1 = e1/n1;
 		e2 = e2/n2;

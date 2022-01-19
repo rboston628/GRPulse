@@ -57,13 +57,14 @@ void Mode<numvar>::basic_setup(){
 	driver->getBoundaryMatrix(num_var, yCenter, ySurface, yy, ind);
 	for(int i=0;i<numvar;i++) for(int j=0;j<numvar;j++) boundaryMatrix[i][j]=yy[i][j];
 	for(int i=0;i<numvar;i++) indexOrder[i] = ind[i];
+	delete[] yy;
+	delete[] ind;
 }
 
 //This constructor is given an initial value of frequency to use
 //This initial guess is used as a starting point in search for frequency
 template <size_t numvar> 
 Mode<numvar>::Mode(double omg2, int l, int m, ModeDriver *drv)
-//	 : ModeBase(drv) 
 	: l(l), m(m), omega2(omg2), driver(drv), star(drv->star)
 {	
 	basic_setup();
@@ -77,7 +78,6 @@ Mode<numvar>::Mode(double omg2, int l, int m, ModeDriver *drv)
 //The initial guess is taken from the analytic solutions for n=0 polytrope
 template <size_t numvar> 
 Mode<numvar>::Mode(int K, int L, int M, ModeDriver *drv)
-//	 : ModeBase(drv)
 	: l(L), m(M), k(K), driver(drv), star(drv->star)
 {	
 	basic_setup();
@@ -123,7 +123,6 @@ Mode<numvar>::Mode(int K, int L, int M, ModeDriver *drv)
 //The range must bound exactly one eigenfrequency
 template <size_t numvar> 
 Mode<numvar>::Mode(double omeg2lo, double omeg2hi, int l, int m, ModeDriver *drv)
-//	 : ModeBase(drv)
 	: l(l), m(m), driver(drv), star(drv->star)
 {	
 	basic_setup();
@@ -337,7 +336,7 @@ void Mode<numvar>::convergeNewton(double tol, int term){
 	double W1 = RK4center(omega2, yCenter,ySurface), W2;
 	while( fabs(w1-w2) > tol){
 		w1=w2;		
-		w2 = 1.01*w1;
+		w2 = 1.0001*w1;
 		W2 = RK4center(w2, yCenter,ySurface);
 		if(W2==W1){
 			printf("stux\n");
