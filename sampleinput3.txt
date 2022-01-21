@@ -1,3 +1,6 @@
+# calculate modes for a newtonian polytrope, index n=2
+# the output can be compared to the table in accompanying paper
+
 Name:	PN0_m_0.6_R_1.3_2.0
 Model:	newtonian polytrope	2.0	100000
 Params:	mass 0.6	radius 8282

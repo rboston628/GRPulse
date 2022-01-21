@@ -23,7 +23,9 @@ const double m_pi = 3.141592653589793;
 //speed of light in CGS
 const double C_CGS = 2.99792458e10;// in CGS
 //gravitational constant in CGS
-const double G_CGS = 6.6725985e-8; // in CGS
+// previous value G = 6.6725985e-8 taken from: https://iopb.res.in/~somen/constants0.html
+// new value taken from: https://physics.nist.gov/cuu/Constants/index.html
+const double G_CGS = 6.67430e-8; // in CGS
 
 //Avogagro's number
 const double N_Avogadro = 6.02214076e23;

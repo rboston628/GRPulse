@@ -1,4 +1,4 @@
-# calculate a post-newtonian polytrope, index n=1
+# calculate modes for a post-newtonian polytrope, index n=1
 # the output can be compared to the table in accompanying paper
 
 Name:	PN1_m_0.6_R_1.3_1.0
