@@ -94,17 +94,25 @@ GRPulse:  $(MAINOBJ) $(MODEOBJ) $(STAROBJ) $(DRVOBJ)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDIR)/mylib.a
 
 ## Rules for each subsection -- only update if their dependencies change
-$(STAROBJ): $(ODIR)/%.o: $(SDIR)/%.cpp $(STARDEPS)
+$(STAROBJ): $(ODIR)/%.o: $(SDIR)/%.cpp $(STARDEPS) |obj/STARS
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-$(DRVOBJ): $(ODIR)/%.o: $(SDIR)/%.cpp $(DRVDEPS)
+$(DRVOBJ): $(ODIR)/%.o: $(SDIR)/%.cpp $(DRVDEPS) |obj/MODES
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-$(MODEOBJ): $(ODIR)/%.o: $(SDIR)/%.cpp $(MODEDEPS)
+$(MODEOBJ): $(ODIR)/%.o: $(SDIR)/%.cpp $(MODEDEPS) |obj.MODES
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-$(MAINOBJ): $(ODIR)/%.o: $(SDIR)/%.cpp  $(MAINDEPS)
+$(MAINOBJ): $(ODIR)/%.o: $(SDIR)/%.cpp  $(MAINDEPS) |obj
 	$(CC) -c -o $@ $< $(CFLAGS)
+
+# these will create the necessary directories
+obj:
+	mkdir -p obj
+obj/STARS:
+	mkdir -p obj/STARS
+obj/MODES:
+	mkdir -p obj/MODES
 
 
 
