@@ -128,16 +128,7 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 	int a=53, b=122, r=17737, ok = 39; //these are arbitrary but not magical -- cycle ~ r-1
 	//good ol' 2*pi
 	double twopi = 6.283185307179586;
-
-	//flags indicating whether error columns should be calculated for test cases
 	double index=data.input_params[0];
-	bool isIsopycnic = (data.model==model::polytrope) & (index==0.0);
-	bool isJCD = (data.model==model::polytrope) &
-		(data.regime==regime::PN0) &
-		(index==1.5 | index==3.0 | index==4.0) &
-		(fabs(data.adiabatic_index - 5./3.)<1.e-5);
-	bool comp1PN = (data.model==model::polytrope) & (data.regime==regime::PN1 | data.regime==regime::GR);
-
 	
 	//produce a list of the different L asked for, each represented once
 	int nextl=0;
@@ -619,8 +610,21 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 	
 		//STEP 6: calculate desired errors
 		int e=0;
-		//STEP 6a: for n=0 polytropes, we can compare frequencies to the exact Pekeris formula
-		if(isIsopycnic){
+		//STEP 6a: for simple models, use RMSR to indicate numerical error
+		if(data.error[error::isRMSR]){
+			for(int i=enext;i<data.mode_done; i++){
+				data.err[e][i] = data.mode_SSR[i];
+			}
+			e++;
+		}
+		//STEP 6b: for realistic models, use overlap c0 to indicate numerical error
+		//  this logic is not workign very well yet
+		if(data.error[error::isC0]){
+			for(int i=enext;i<data.mode_done; i++) data.err[e][i] = 0.0;
+			e++;
+		}
+		//STEP 6c: for n=0 polytropes, we can compare frequencies to the exact Pekeris formula
+		if(data.error[error::isIsopycnic]){
 			for(int i=enext;i<data.mode_done; i++){
 				if(data.k[i] >=0)
 					data.err[e][i] = compare_Pekeris(data.w[i], data.l[i], data.k[i], data.adiabatic_index);
@@ -628,19 +632,19 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 			}
 			e++;
 		}
-		//STEP 6b: for certain polytrope frequencies, we can compare to tables in JCD-DJM paper
-		if(isJCD) {
+		//STEP 6d: for certain polytrope frequencies, we can compare to tables in JCD-DJM paper
+		if(data.error[error::isJCD]) {
 			for(int i=enext;i<data.mode_done; i++){
-				//if((data.l[i]==1 | data.l[i]==2 | data.l[i]==3) & (data.k[i]>0 & data.k[i]<36))
+				if((data.l[i]==1 | data.l[i]==2 | data.l[i]==3) & (data.k[i]>0 & data.k[i]<36))
 					data.err[e][i] = compare_JCD(index, data.l[i], data.k[i], data.w[i]);
-				//else data.err[e][i] = nan("");
+				else data.err[e][i] = nan("");
 			}
 			e++;
 		}
-		//STEP 6c: for 1PN polytropes, we can compare against frequencies from Newtonian polytropes
+		//STEP 6e: for 1PN polytropes, we can compare against frequencies from Newtonian polytropes
 		//  will calculate a Newtonian polytrope, then try to match the corresponding mode
 		//  this will only try to match it once, using the 1PN frequency to start
-		if(comp1PN){
+		if(data.error[error::comp1PN]){
 			Polytrope *star0PN = new Polytrope(1.0,1.0, index, data.Ngrid);
 			NonradialModeDriver *drv0PN = new NonradialModeDriver(star0PN, data.adiabatic_index);
 			const int nn = NonradialModeDriver::num_var;

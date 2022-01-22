@@ -50,7 +50,7 @@ namespace units {
 }
 //distinguish several types of mode calculation
 namespace modetype {enum ModeType {radial, nonradial, cowling, quasinormal};}
-
+namespace error {enum ErrorType {isRMSR=0, isC0, isIsopycnic, isJCD, comp1PN, numerror};}
 
 //an  object specifying input parameters for a calculation
 struct CalculationInputData {
@@ -94,7 +94,7 @@ struct CalculationOutputData {
 	int *l, *k;						//pointers to arrays for L,K of modes to be calculated
 	double *w, *f, *period;			//points to arrays of frequency and period for each mode
 	int i_err;						//a number of errors to calculate for each mode
-	double **err;					//an array, for each mode listing the required number of errors
+	double **err;					//an array, for each mode listing all required errors
 	double mass, radius, zsurf, logg, teff, star_SSR;
 	double *mode_SSR;				//an array, for each mode stating the backsubstitution residual
 	double freq0;					//a base frequency given the mass, radiusof star
@@ -103,6 +103,8 @@ struct CalculationOutputData {
 	Star* star;						//the stellar model
 	ModeDriver* driver;				//the driver for the chosen mode type
 	std::vector<ModeBase*> mode;	//an array of modes to be calculated
+	// outout error flags -- these flags indicate which columns to print to estimate numerical error
+	bool error[error::numerror];
 	//the deconstructor
 	~CalculationOutputData(){
 		delete star;

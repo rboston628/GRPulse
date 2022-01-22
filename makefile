@@ -90,7 +90,7 @@ MAINOBJ = $(patsubst %.cpp,$(ODIR)/%.o, $(_MAINSRC))
 
 
 ## Main rule for GRPulse program
-GRPulse:  $(MAINOBJ) $(MODEOBJ) $(STAROBJ) $(DRVOBJ)
+GRPulse:  $(MAINOBJ) $(MODEOBJ) $(STAROBJ) $(DRVOBJ) |library
 	$(CC) -o $@ $^ $(CFLAGS) $(LDIR)/mylib.a
 
 ## Rules for each subsection -- only update if their dependencies change
@@ -107,6 +107,8 @@ $(MAINOBJ): $(ODIR)/%.o: $(SDIR)/%.cpp  $(MAINDEPS) |obj
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 # these will create the necessary directories
+# see solution 4 here: 
+#    https://www.cmcrossroads.com/article/making-directories-gnu-make
 obj:
 	mkdir -p obj
 obj/STARS:
@@ -114,6 +116,10 @@ obj/STARS:
 obj/MODES:
 	mkdir -p obj/MODES
 
+library:
+	$(CC) -c -o lib/Splinor.o lib/Splinor.cpp
+	$(CC) -c -o lib/chandra.o lib/chandra.cpp
+	ar rcs lib/mylib.a lib/Splinor.o lib/chandra.o
 
 
 .PHONY: clean

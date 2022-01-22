@@ -347,20 +347,23 @@ int setup_output(CalculationInputData &data_in, CalculationOutputData &data_out)
 	
 	//setup error columns
 	data_out.i_err = 0;
+	//if the star is a simple model, use RMSR to estimate mode error
+	data_out.error[error::isRMSR] = true;
+	//if the star is a realistic model, use overlap c_0 to estimate mode error
+	data_out.error[error::isC0   ] = false;
 	//if it is a polytrope with n=0, use the Pekeris formula to compare
-	bool isIsopycnic = (data_out.model==model::polytrope) & (data_out.input_params[0]==0.0);
-	//if it is a Newtonian polytrope with Gamma=5/3 and n=1.5,3,4, then compare tp JCD-DJM
-	bool isJCD = (data_out.model==model::polytrope) &
+	data_out.error[error::isIsopycnic] = ((data_out.model==model::polytrope) & (data_out.input_params[0]==0.0));
+	//if it is a Newtonian polytrope with Gamma=5/3 and n=1.5,3,4, then compare to JCD-DJM
+	data_out.error[error::isJCD] = (data_out.model==model::polytrope) &
 		(data_out.regime==regime::PN0) &
 		(data_out.input_params[0]==1.5 | data_out.input_params[0]==3.0 | data_out.input_params[0]==4.0) &
 		(fabs(data_out.adiabatic_index - 5./3.)<1.e-5);
-	//if it is a 1PN polytrope, compare to a Newtonian polytrope
-	bool comp1PN = (data_out.model==model::polytrope) 
+	//if it is a 1PN/GR polytrope, compare to a Newtonian polytrope
+	data_out.error[error::comp1PN] = (data_out.model==model::polytrope) 
 					& (data_out.regime==regime::PN1 | data_out.regime==regime::GR);
 	//count the number of pertinent errors
-	if(isIsopycnic) data_out.i_err++;
-	if(isJCD) data_out.i_err++;
-	if(comp1PN) data_out.i_err++;
+	for(int e=0; e<error::numerror; e++)
+		if(data_out.error[e]) data_out.i_err++;
 	//create the error columns
 	data_out.err = new double*[data_out.i_err];
 	for(int e=0; e<data_out.i_err; e++) data_out.err[e] = new double[data_out.mode_num];
@@ -528,16 +531,7 @@ int write_mode_output(CalculationOutputData& calcdata){
 		printf("the file doesn't exist\n");
 		return 1;
 	}
-	
-	//these boolean flags set up error column outputs for different test cases
-	bool isIsopycnic = (calcdata.model==model::polytrope) & (calcdata.input_params[0]==0.0);
-	bool isJCD = (calcdata.model==model::polytrope) &
-		(calcdata.regime==regime::PN0) &
-		(calcdata.input_params[0]==1.5 | calcdata.input_params[0]==3.0 | calcdata.input_params[0]==4.0) &
-		(fabs(calcdata.adiabatic_index - 5./3.)<1.e-5);
-	bool comp1PN = (calcdata.model==model::polytrope) 
-					& (calcdata.regime==regime::PN1 | calcdata.regime==regime::GR);
-	
+		
 	int WIDTH = 120;
 	if(calcdata.mode_writ==0){
 		fprintf(output_file, "\n");
@@ -568,16 +562,28 @@ int write_mode_output(CalculationOutputData& calcdata){
 		
 		//begin printing titles for columns
 		//line 1
-		fprintf(output_file, "#     \tmode \tfreq               \tfreq               \tperiod            \tperiod             \tfractional");
-		if(isJCD) fprintf(output_file,"\tabs. diff. w/");                                                                      
-		if(isIsopycnic) fprintf(output_file,"\trel.error w/");                                                                      
-		if(comp1PN) fprintf(output_file,"\trel. diff. w/");                                                                      
+		fprintf(output_file, "#     \tmode \tfreq               \tfreq            \tperiod             \tperiod             ");
+		std::vector<std::string> topline{
+			"\tfractional  ",
+			"\t            ",
+			"\trel.error w/",
+			"\tabs.diff. w/",
+			"\trel.diff. w."
+		};
+		for(int e=0; e<error::numerror; e++)
+			if(calcdata.error[e]) fprintf(output_file, "%s", topline[e].c_str());                                                                  
 		fprintf(output_file, "\n");                                                                                    
 		//line 2                                                                                                        
-		fprintf(output_file, "# L,N \ttype \tsq(GM/R^3)         \t(Hz)            \tsq(R^3/GM)         \t(s)               \tRMSE     ");
-		if(isJCD) fprintf(output_file,"\tJCD-DJM paper (uHz)");
-		if(isIsopycnic) fprintf(output_file,"\tPekeris formula");
-		if(comp1PN) fprintf(output_file, "\tNewtonian freq");
+		fprintf(output_file, "# L,N \ttype \tsq(GM/R^3)         \t(Hz)            \tsq(R^3/GM)         \t(s)               ");
+		std::vector<std::string> botline{
+			"\tRMSR     ",
+			"\tc0 or c1 ",
+			"\tPekeris formula",
+			"\tJCD_DJM 1994 (uHz)",
+			"\tNewtonian freq"
+		};
+		for(int e=0; e<error::numerror; e++)
+			if(calcdata.error[e]) fprintf(output_file, "%s", botline[e].c_str());
 		fprintf(output_file, "\n");
 		for(int j=0; j<WIDTH; j++) fprintf(output_file, "#");
 		fprintf(output_file, "\n");
@@ -597,7 +603,7 @@ int write_mode_output(CalculationOutputData& calcdata){
 			continue;
 		}
 		fprintf(output_file, "%0.12le \t%3.12le \t%0.12le \t%0.12le", calcdata.w[j], calcdata.f[j], calcdata.freq0*calcdata.period[j],calcdata.period[j]);
-		fprintf(output_file, "\t%1.2le", calcdata.mode_SSR[j]);
+		//fprintf(output_file, "\t%1.2le", calcdata.mode_SSR[j]);
 		for(int e=0; e<calcdata.i_err; e++){
 			if(!isnan(calcdata.err[e][j])) fprintf(output_file, "\t%1.2le", calcdata.err[e][j]);
 			else fprintf(output_file, "\tN/A");
@@ -626,9 +632,6 @@ void print_splash(FILE* output_file, char* title, int WIDTH){
 
 
 //NOTE: this function has a problem and will always cause a seg fault
-// I had fixed it before, but inadvertently overwrote my fix of it
-// The issue has to do with deleting the k=0 mode
-//More concretely, it is related the index lastl
 int write_tidal_overlap(CalculationOutputData& calcdata){
 	printf("Writing tidal overlap coefficients...\n");fflush(stdout);
 	//open file to write output summary
@@ -657,7 +660,7 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 	//a useful error measurement is to calculate c0 -- see Fuller & Lai 2011 A
 	//for this, we need the k=0 mode for each value of l
 	//produce a list of the different L asked for
-	int lastl=0;
+	int lastl=0, minl=100, maxl=-1;
 	int num = calcdata.mode_done;
 	int l_list[num];
 	printf("\tpreparing mode list...\t");
@@ -665,11 +668,13 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 	for(int j=1; j<num; j++){
 		int l_current = calcdata.l[j];
 		if(l_current == l_list[lastl]) continue;
+		// do not calculate overlap for dipole or radial modes
 		if(l_current < 2) {l_list[lastl]=l_current; continue;}
 		else{
+			//check if we already counted this l value
 			bool already = false;
 			for(int i=0; (i<=lastl) & !already; i++){
-				if(l_current == l_list[i]) already = true;
+				already |= (l_current == l_list[i]);
 			}
 			if(already) continue;
 			else {
@@ -677,26 +682,40 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 				l_list[lastl] = l_current;
 			}
 		}
+		//find min, max
+		if(l_current < minl) minl=l_current;
+		if(l_current > maxl) maxl=l_current;
 	}
+	//extra increment to align with zero-indexing
 	lastl++;
+	for(int j=lastl; j<num; j++) l_list[j]=-1;
 	printf("done\n");
 	
+	//an array to allow indexing of fmodes by l
+	int jforl[maxl-minl+1];
+	for(int l=minl; l<=maxl; l++){
+		for(int j=0; j<lastl; j++){
+			if(l==l_list[j]) jforl[l] = j;
+		}
+	}
+		
 	//now make the fundamental mode for each of those l
-	ModeBase *fmode[1+lastl];
+	ModeBase *fmode[lastl];
 	printf("\tpreparing f-modes...\n");fflush(stdout);
 	for(int j=0; j<lastl; j++){
 		printf("\t\tl=%d\t", l_list[j]);
 		//for dipole (l=1) modes, there is no f-mode-- skip!
 		if(l_list[j]<2) {
+			fmode[j] = NULL;
 			printf("no tidal response at this order\n");
 			continue;
 		}
 		//check if the f-mode has already been found earlier
 		bool inlist=false;
-		for(int i=0; i<calcdata.mode_done; i++){
+		for(int i=0; i<num; i++){
 			if(calcdata.l[i]==l_list[j] & calcdata.k[i]==0) {
 				inlist=true;
-				fmode[l_list[j]] = calcdata.mode[i];	
+				fmode[j] = calcdata.mode[i];	
 			}
 		}
 		//if so, we don't need to calculate it, move on to next l
@@ -707,9 +726,8 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 		//if not, then keep searching until we find it
 		printf("searching ...\t");fflush(stdout);
 
-		ModeBase *temp = new Mode<4>(0,l_list[j],0, calcdata.driver);
-		fmode[l_list[j]] = temp;//new Mode<4>(0,l_list[j],0, calcdata.driver);	
-		int kk = fmode[l_list[j]]->modeOrder();
+		fmode[j] = new Mode<4>(0,l_list[j],0, calcdata.driver);	
+		int kk = fmode[j]->modeOrder();
 		if(kk!=0){
 			//use a bisection search to find the desired mode
 			double w2min=0.0, w2max=0.0, dw2=0.0, w2in=0.0, w2out=0.0;
@@ -719,7 +737,7 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 			if(kk > 0){		
 				//use the current mode as a max bracket (since it is high)
 				kmax  = kk;
-				w2max = fmode[l_list[j]]->getOmega2();
+				w2max = fmode[j]->getOmega2();
 				//use an absolute minimum as a min bracket
 				// (note: this puts limits on allowed gmodes at -999999999)
 				w2min = 0.0;
@@ -729,7 +747,7 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 			else if(kk < 0){
 				//use the current mode as a min bracket
 				kmin  = kk;
-				w2min = fmode[l_list[j]]->getOmega2();
+				w2min = fmode[j]->getOmega2();
 				dw2 = w2min;
 				//if the max bracket was not found in list, search for it
 				//start at current mode and increase
@@ -741,7 +759,7 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 					w2max = w2max + dw2;
 
 					//fmode[l_list[j]] = new Mode<NV1>(w2max, l_list[j],0,calcdata.driver);
-					kmax = fmode[l_list[j]]->modeOrder();
+					kmax = fmode[j]->modeOrder();
 					//if we found it, quit
 					if(kmax == 0){
 						kk=kmax;
@@ -767,10 +785,10 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 			while(kk != 0){
 				w2in = 0.5*(w2min+w2max); //bisect the brackets
 				//create a trial mode
-				delete fmode[l_list[j]];
-				//fmode[l_list[j]] = new Mode<4>(w2in, l_list[j],0,calcdata.driver);
-				kk = fmode[l_list[j]]->modeOrder();
-				w2out = fmode[l_list[j]]->getOmega2();
+				delete fmode[j];
+				fmode[j] = new Mode<4>(w2in, l_list[j],0,calcdata.driver);
+				kk = fmode[j]->modeOrder();
+				w2out = fmode[j]->getOmega2();
 			
 				//if we found it, then great.  move on to next
 				if(kk == 0) {
@@ -796,12 +814,12 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 			}
 		}
 	}
-	printf("done\n");
+	printf("\tdone\n");
 	
 	printf("\tcalculating overlap and c0...\t");
 	fprintf(output_file, "#l,k \tmodeid\tomega^2 (GM/r^3)  \tdimensionless overlap \tc0\n");
 	for(int j=0; j<WIDTH; j++) fprintf(output_file, "#");
-	fprintf(output_file, "\n");
+	fprintf(output_file, "\n");fflush(output_file);
 	int ll=l_list[0];
 	for(int j=0; j<calcdata.mode_done; j++){
 		if(calcdata.l[j]<2) continue;
@@ -815,15 +833,15 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 			fprintf(output_file, "unable to find mode\n");
 			continue;
 		}
-		fprintf(output_file, "%0.12le \t%3.16le \t%0.12le \n", 
-			sqrt(calcdata.mode[j]->getOmega2()), 
-			fabs(calcdata.mode[j]->tidal_overlap()),
-			fabs(calcdata.driver->innerproduct(calcdata.mode[j],fmode[calcdata.l[j]]))
+		fprintf(output_file, "%0.12le \t", sqrt(calcdata.mode[j]->getOmega2())); fflush(output_file);
+		fprintf(output_file, "%3.16le \t", fabs(calcdata.mode[j]->tidal_overlap())); fflush(output_file);
+		fprintf(output_file, "%0.12le \n", 
+			fabs(calcdata.driver->innerproduct(calcdata.mode[j],fmode[jforl[calcdata.l[j]]]))
 		);
 		fflush(output_file);
 	}
 	fclose(output_file);
-	for(int j=0; j<l_list[0]+lastl; j++){
+	for(int j=0; j<lastl; j++){
 		delete fmode[j];
 	}
 	printf("\tdone\n");
