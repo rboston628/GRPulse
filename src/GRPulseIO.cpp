@@ -348,9 +348,9 @@ int setup_output(CalculationInputData &data_in, CalculationOutputData &data_out)
 	//setup error columns
 	data_out.i_err = 0;
 	//if the star is a simple model, use RMSR to estimate mode error
-	data_out.error[error::isRMSR] = true;
+	data_out.error[error::isRMSR] = ((data_out.model!=model::MESA));
 	//if the star is a realistic model, use overlap c_0 to estimate mode error
-	data_out.error[error::isC0   ] = false;
+	data_out.error[error::isC0  ] = ((data_out.model==model::MESA));
 	//if it is a polytrope with n=0, use the Pekeris formula to compare
 	data_out.error[error::isIsopycnic] = ((data_out.model==model::polytrope) & (data_out.input_params[0]==0.0));
 	//if it is a Newtonian polytrope with Gamma=5/3 and n=1.5,3,4, then compare to JCD-DJM

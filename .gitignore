@@ -9,4 +9,5 @@
 *.o
 *.a
 output/*
+testing/*/*/*
 *.tex

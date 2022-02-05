@@ -620,8 +620,28 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 		//STEP 6b: for realistic models, use overlap c0 to indicate numerical error
 		//  this logic is not workign very well yet
 		if(data.error[error::isC0]){
-			for(int i=enext;i<data.mode_done; i++) data.err[e][i] = 0.0;
+			int testK = (l_list[j]==1 ? 1 : 0);
+			MODE *testmode;
+			bool containsK=false;
+			int indexK = 0;
+			//check if we already have the test mode to compare against
+			for(int i=enext;i<data.mode_done;i++){
+				if((!containsK) & (data.k[i]==testK)) indexK=i;
+				containsK |= (data.k[i]==testK);
+			}
+			//if so use it
+			if(containsK) testmode = static_cast<MODE*>(data.mode[indexK]);
+			//if not, make one
+			else {
+				testmode = new MODE(testK,l_list[j],0,data.driver);
+			}
+			bool correctTest = (testmode->modeOrder() == testK);
+			for(int i=enext;i<data.mode_done; i++){
+				if(correctTest) data.err[e][i] = fabs(data.driver->innerproduct(data.mode[i],testmode));
+				else            data.err[e][i] = nan("");
+			}
 			e++;
+			if(!containsK) delete testmode;
 		}
 		//STEP 6c: for n=0 polytropes, we can compare frequencies to the exact Pekeris formula
 		if(data.error[error::isIsopycnic]){
