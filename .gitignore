@@ -38,14 +38,18 @@
 ## DOCUMENTATION
 # include the documentation
 !documentation/
-!documentation/*
+!documentation/*.pdf
 !documentation/mathematica/
-!documentation/mathematica/*
+!documentation/mathematica/*.nb
 # but not the tex source or aux files
+*.tex
 *.aux
 *.out
 *.toc
 *.log
 *.out
 *.gz
+*.o
+*.a
 
+.DS_Store
