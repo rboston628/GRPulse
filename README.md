@@ -25,6 +25,8 @@ If you use this code for your research before official publication, cite tentati
 	school = {University of North Carolina},
 	year = {2022}
 }
+````
+
 
 ## Code Attribution
 If you adapt parts of this code into your own asteroseismology code, include attribution to Reece Boston and cite the above paper (name/year) within a comment in the source code.
