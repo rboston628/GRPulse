@@ -427,7 +427,7 @@ double GRPolytrope::Lambda(int X){
 }
 double GRPolytrope::dLambdadr(int X){
 	double twonpsig = 2.*(n+1.)*sigma;
-	return twonpsig*(pow(Y[X][x],3)*pow(Y[X][y],n)-Y[X][v])/(pow(Y[X][x],2)-twonpsig*Y[X][v]*Y[X][x])/Rn;
+	return twonpsig*(pow(Y[X][x],3)*pow(Y[X][y],n)-Y[X][v])/pow(Y[X][x],2)*std::exp(Y[X][la])/Rn;
 }
 double GRPolytrope::d2Lambdadr2(int X){
 	double twonpsig = 2.*(n+1.)*sigma;

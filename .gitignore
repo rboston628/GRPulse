@@ -1,13 +1,51 @@
-.DS_Store
+## IGNORE EVERYTHING -- MANUALLY INCLUDE INSTEAD
+*
+
+## EXCEPTIONS
+
+# basic files
+!.gitignore
+!README.md
+!LICENSE
+!makefile
+
+# sample input files
+!sample*.txt
+!mesa_co_wd_cold.dat
+!mesa_co_wd_hot.dat
+
+# the source code itself
+!lib/
+!src/
+!src/*/
+!lib/*.h
+!lib/*.cpp
+!src/*.h
+!src/*.cpp
+!src/*/*.h
+!src/*/*.cpp
+
+
+# the testing suite and aux files
+!testing/
+!testing/*/
+!testing/*/*.cpp
+!testing/TestingPolytrope/LiteratureTable.txt
+!testing/testSplinor/*.dat
+!testing/testMatrix/testMatrix.nb
+
+
+## DOCUMENTATION
+# include the documentation
+!documentation/
+!documentation/*
+!documentation/mathematica/
+!documentation/mathematica/*
+# but not the tex source or aux files
 *.aux
 *.out
 *.toc
 *.log
 *.out
 *.gz
-*.log
-*.o
-*.a
-output/*
-testing/*/*/*
-*.tex
+

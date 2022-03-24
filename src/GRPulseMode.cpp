@@ -637,6 +637,7 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 			}
 			bool correctTest = (testmode->modeOrder() == testK);
 			for(int i=enext;i<data.mode_done; i++){
+				if(data.w[i]==0) continue;
 				if(correctTest) data.err[e][i] = fabs(data.driver->innerproduct(data.mode[i],testmode));
 				else            data.err[e][i] = nan("");
 			}
@@ -685,7 +686,7 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 			e++;
 		}
 		if(e!=data.i_err) printf("Error in mode error listing...\n");
-		
+
 		//STEP 7: at the end of each L, print all data to the output file 
 		write_mode_output(data);
 	}

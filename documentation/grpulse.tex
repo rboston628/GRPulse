@@ -1,0 +1,110 @@
+\chapter{Using the command line program \label{chapter:grpulse}}
+
+\section{Installation and Set Up}
+
+This program was developed in macOS and originally compiled with \tcode{gcc}.  If your \tcode{gcc} is up-to-date, then the included makefile should prepare everything for you.  Linux users should be able to make this work without too much intervention.  Windows users should consider installing a real operating system.
+
+To compile, first \tcode{cd} to the \tcode{lib} directory and type
+\begin{verbatim}
+	make -f makelib
+\end{verbatim}
+This will create the library.  Next \tcode{cd} back to main directory and type \verb+make+.  That will create the entire program.
+
+If you have persistent problems, check that you have the latest version of \tcode{gcc} installed, capable of C++11.  If so but there are still problems, please \href{mailto:\myemail}{email me.}
+
+\section{Creating an input file}
+The program includes a UI meant to be run from the command line, called \tfile{GRPulse}.  User specification for the stellar background and the modes should be placed in the input file.  The input file should be structured as follows:
+\begin{itemize}
+	\item Line 1: the word \tcode{Name: } followed by a keyword to be used when naming files related to this calculation.
+	\item Line 2: the word \tcode{Model: } followed by the following specifications, separated by a space:
+		\begin{itemize}
+			\item a keyword for the \emph{regime} of physics:
+				\begin{itemize}
+					\item \tcode{newtonian} -- Newtonian physics
+					\item \tcode{1pn} -- the first post-Newtonian approximation
+					\item \tcode{gr} -- Einstein's general relativity
+				\end{itemize}
+			\item a keyword for the stellar background model:
+				\begin{itemize}
+					\item \tcode{polytrope} -- a polytrope \textcolor{blue}{(works in all regimes)}
+					\item \tcode{MESA} -- a wrapper for a \tfile{MESA} model \textcolor{red}{(only in \tcode{newtonian})}
+					\item \tcode{CHWD} -- a Chandrasekhar WD \textcolor{red}{(only in \tcode{newtonian}, \tcode{1pn})}
+				\end{itemize}
+			\item model-specific parameters.  See Sec \ref{sec:grpulse:params} below.
+		\end{itemize}
+	\item Line 3: in {\bf some models}, the word \tcode{Params: } followed by two of the following:
+		\begin{itemize}
+			\item the word \tcode{mass} and a real number indicating the total mass of the star
+			\item the word \tcode{radius} and a real number indicating the total radius of the star
+			\item the word \tcode{logg} and a real number indicating the $\log_{10} g$ surface gravity of star
+			\item the word \tcode{zsurf} and a real number indicating the surface redshift
+		\end{itemize}
+	\item Line 4: in {\bf all models}, the word \tcode{Units: } followed by a keyword specifying:
+		\begin{itemize}
+			\item \tcode{CGS}, currently the main one working
+			\item \tcode{geo}, for using geometric units as in GR
+			\item \tcode{SI}, for using SI units
+			\item \tcode{astro}, for using ``astronomical units'', where mass is in $M_\odot$, distance is in km, and time in seconds
+		\end{itemize} Currently, only \tcode{CGS} and \tcode{astro} are confirmed to behave properly.
+	\item Line 5: this must be a blank line.
+	\item Line 6: in {\bf all models} the word \tcode{Frequencies: } followed by the mode type to use and the adiabatic index to use.  
+		Mode type options are:
+		\begin{itemize}
+			\item \tcode{cowling} \textcolor{red}{(only in \tcode{newtonian} or \tcode{gr})}
+			\item \tcode{nonradial}
+		\end{itemize}
+		The adiabatic index is a number.  The special cases $\Gamma_1=5/3$ and $\Gamma_1=4/3$ can be specified by writing the fractions \tcode{5/3} and \tcode{4/3}.  Other indices must be specified in decimal format.  To use the adiabatic index $\Gamma_1 = \left(\partial\log P/\partial\log\rho\right)_{ad}$ calculated from the stellar background then use \tcode{0}.
+	\item Line 7: Beginning here and onward, write the mode numbers for each mode you wish to calculate on a separate line.  These are specified as $\ell, k$, where $k$ counts the nodes and $\ell$ the angular momentum.  Negative $k$ specify g-modes, positive specify p-modes.  Note that there is no $1,0$ mode, so specifying one can cause the program to hang. 
+\end{itemize}
+The file should be saved in the same file as \tfile{GRPulse}.  Assuming \tfile{GRPulse} has been properly compiled and the file called \tfile{myinput.txt}, then you can run with
+\begin{verbatim}
+	./GRPulse myinput.txt
+\end{verbatim}
+
+\subsection{Comments in Input Files}
+Comments may be placed in an input file, subject to the following restrictions:
+\begin{itemize}
+	\item Comments must begin with \verb+#+.
+	\item Comments may only be placed {\bf at the top of the file}.
+	\item Blank lines may be used within the comment section, but not after. 
+\end{itemize}
+You can see this examples of comment use within the sample files.
+
+\section{Parameters for stellar models \label{sec:grpulse:params}}
+For the following model, on the same line as the model keyword, give the following parameters in order, separated by a space.
+\begin{itemize}
+	\item \tcode{polytrope} 
+		\begin{enumerate}
+			\item real number for polytrope index $n$
+			\item integer for number of grid points
+		\end{enumerate} 
+		The next line should be \tcode{Params:} as above.
+	\item \tcode{CHWD} 
+		\begin{enumerate}
+			\item real number for initial value $y_o$ (see \hyperlink{class:CHWD}{\tclass{ChandrasekharWD}})
+			\item integer for number of grid points
+		\end{enumerate}
+		Do {\bf not} include \tcode{Params:} line.
+	\item \tcode{MESA}
+		\begin{enumerate}
+			\item string with name of dat file (omitting the ``\tfile{.dat}'')
+			\item integer for number of grid points to use -- this number is a \emph{suggestion}
+		\end{enumerate}
+		All \tcode{MESA} data files must be moved to the \tfile{GRPulse} directory.  
+		Do {\bf not} include the \tcode{Params:} line.
+\end{itemize}
+
+\section{The output}
+When the calculation begins, \tfile{GRPulse} will create a directory specific to this calculation based on the given name, located in the \tfile{output} directory.  The first output it makes is an echo of the input file, for re-running the specific calculation.  Assuming your calculation was given the name \tcode{myname}, this file will be called \tfile{myname\_in.txt}.  The main output file will be called \tfile{myname.txt}.  This contains data about the star, and summary results for all modes calculated.
+
+The program will also create subdirectories called \tfile{modes} and \tfile{star}.  These contain graphs and data files relevant either to the stellar background or to the modes.  The \tfile{modes} directory can take up a lot of memory, so if you do not think you will need graphs of every mode, you may want to delete this directory's contents.
+
+\section{Sample Input}
+There are several sample inputs included in the distribution.  They perform the following:
+\begin{description}
+	\item[sampleinput1.txt] Will create results for an $n=0$ polytrope to compare against Pekeris formula.
+	\item[sampleinput2.txt] Will create the post-newtonian results for $n=1$ in \mypaper
+	\item[sampleinput3.txt] Will create the Newtonian results for $n=2$ in \mypaper
+	\item[sampleinput4.txt] Will create a table which can be compared to results in Christensen-Dalsgaard \& Mullan (1994) paper for polytrope eigenmodes.
+	\item[sampleinput5.txt] Shows how to use \tfile{MESA} data files.
+\end{description}
