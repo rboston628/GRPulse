@@ -661,10 +661,15 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 	//for this, we need the k=0 mode for each value of l
 	//produce a list of the different L asked for
 	int lastl=0, minl=100, maxl=-1;
+	//find min, max
+	int l_current = calcdata.l[0];
+	if(l_current < minl) minl=l_current;
+	if(l_current > maxl) maxl=l_current;
 	int num = calcdata.mode_done;
 	int l_list[num];
 	printf("\tpreparing mode list...\t");
 	l_list[0] = calcdata.l[0];
+	printf("\n");
 	for(int j=1; j<num; j++){
 		int l_current = calcdata.l[j];
 		if(l_current == l_list[lastl]) continue;
@@ -685,6 +690,7 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 		//find min, max
 		if(l_current < minl) minl=l_current;
 		if(l_current > maxl) maxl=l_current;
+
 	}
 	//extra increment to align with zero-indexing
 	lastl++;
@@ -816,12 +822,13 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 	}
 	printf("\tdone\n");
 	
-	printf("\tcalculating overlap and c0...\t");
+	printf("\tcalculating overlap and c0...\t");fflush(stdout);
 	fprintf(output_file, "#l,k \tmodeid\tomega^2 (GM/r^3)  \tdimensionless overlap \tc0\n");
 	for(int j=0; j<WIDTH; j++) fprintf(output_file, "#");
 	fprintf(output_file, "\n");fflush(output_file);
 	int ll=l_list[0];
 	for(int j=0; j<calcdata.mode_done; j++){
+		if(calcdata.w[j]==0) continue;
 		if(calcdata.l[j]<2) continue;
 		//print the mode numbers L,K
 		fprintf(output_file, " %d,%d \t", calcdata.l[j], calcdata.k[j]);
@@ -837,7 +844,7 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 		fprintf(output_file, "%3.16le \t", fabs(calcdata.mode[j]->tidal_overlap())); fflush(output_file);
 		fprintf(output_file, "%0.12le \n", 
 			fabs(calcdata.driver->innerproduct(calcdata.mode[j],fmode[jforl[calcdata.l[j]]]))
-		);
+		); 
 		fflush(output_file);
 	}
 	fclose(output_file);

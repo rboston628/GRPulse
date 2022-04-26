@@ -16,10 +16,10 @@
 
 # the source code itself
 !lib/
-!src/
-!src/*/
 !lib/*.h
 !lib/*.cpp
+!src/
+!src/*/
 !src/*.h
 !src/*.cpp
 !src/*/*.h

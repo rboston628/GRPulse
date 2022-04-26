@@ -54,7 +54,7 @@ int main(){
 		double exact, x, scale;
 		for(int X=0; X<length0; X++){
 			//only include points where the two models have the same x-value
-			if(star0->getX(X) != star1->getX(fac1*X)) continue;
+			if(fabs(star0->getX(X) - star1->getX(fac1*X)) > 1e-4) continue;
 			x = star0->getX(X);
 			switch(i){
 				case 0: exact = 1.0 - x*x/6.0; break;
