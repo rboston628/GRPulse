@@ -406,10 +406,8 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 						//sometimes zeros are inaccessible
 						//move brackets and try again
 						if(fabs(w2minT-w2maxT)<1e-2*w2minT) {
-							//kk = kl[i];
 							w2min = w2minT;
 							w2max = w2maxT;
-							//w2out = (w2min+w2max)*0.5;
 							break;
 						}
 						//cancel if we have tried more than 5 random spots

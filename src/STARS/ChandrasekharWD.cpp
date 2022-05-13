@@ -227,7 +227,7 @@ int ChandrasekharWD::RK4integrate(const int Len, double dx, int grid){
 	//Butcher tableau for RK4
 	static const double B[4] = {0.5, 0.5, 1.0, 0.0};
 
-	std::complex<double> YCN(0.0,0.0);// = (0.0i);
+	std::complex<double> YCN(0.0,0.0);
 	
 	//set our initial conditions
 	x[0] = 0.0; y[0] = Y0; z[0] = 0.0;
@@ -499,9 +499,7 @@ void ChandrasekharWD::writeStar(char *c){
 	fprintf(gnuplot, "set xlabel 'r/R'\n");
 	fprintf(gnuplot, "set ylabel 'rho/rho_c, P/P_c, m/M, g/g_S'\n");
 	fprintf(gnuplot, "plot '%s' u 1:2 w l t 'rho'", txtname);
-	//fprintf(gnuplot, ", '%s' u 1:3 w l t '|drho/dr|'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:4 w l t 'P'", txtname);
-	//fprintf(gnuplot, ", '%s' u 1:5 w l t '|dP/dr|'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:6 w l t 'm'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:7 w l t 'g'", txtname);
 	fprintf(gnuplot, "\n");
@@ -631,14 +629,12 @@ void ChandrasekharWD::printCoefficients(char *c){
 	}
 	fclose(fp);	
 	//plot file in png in gnuplot
-	//gnuplot = popen("gnuplot -persist", "w");
 	FILE *gnuplot = popen("gnuplot -persist", "w");
 	fprintf(gnuplot, "reset\n");
 	fprintf(gnuplot, "set term png size 1000,800\n");
 	fprintf(gnuplot, "set samples %d\n", length());
 	fprintf(gnuplot, "set output '%s'\n", outname);
 	fprintf(gnuplot, "set title 'Pulsation Coefficients for %s'\n", title);
-	//fprintf(gnuplot, "set xlabel 'log_{10} r/R'\n");
 	fprintf(gnuplot, "set xlabel 'r/R'\n");
 	fprintf(gnuplot, "set ylabel 'A*, U, V_g, c_1'\n");
 	fprintf(gnuplot, "set logscale y\n");
@@ -684,8 +680,6 @@ void ChandrasekharWD::printCoefficients(char *c){
 	fprintf(gnuplot, ",    '%s' u 1:(abs($6-$7)/abs($6)) w lp t 'Vg'", txtname);
 	fprintf(gnuplot, ",    '%s' u 1:(abs($8-$9)/abs($8)) w lp t 'c1'", txtname);
 	fprintf(gnuplot, "\n");
-	
-	//now leave gnuplot
 	fprintf(gnuplot, "exit\n");
 	pclose(gnuplot);
 }

@@ -4,7 +4,6 @@
 //		Implements the output and sum-square residual functions for equilibrium stars
 //		These methods are general enough to work with any sub-class of star
 //**************************************************************************************
-//EQUILIBRIUM STAR
 
 #ifndef STARCLASS
 #define STARCLASS

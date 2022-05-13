@@ -85,8 +85,6 @@ private:
 	double *y;	//Chandrasekhar's y
 	double *f;
 	double *h;
-	
-	//double *dydx; //derivative dy/dxi, need to store derivative separately
 	double φc0;// value of φ at center -- has to be derived from surface values
 	
 	//integrate Lane-Emden using RK4 method

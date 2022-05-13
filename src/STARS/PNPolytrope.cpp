@@ -48,7 +48,7 @@ PNPolytrope::PNPolytrope(double BigM, double BigR, double n, int L)
 	
 	//an initial guess -- based on 0pn constant-volume model
 	double dx = sqrt(6.0)/len, yS=1.0, ddx = dx;
-	φc0 = -1.0;//2.*zsurf/(n+1.);
+	φc0 = -1.0;
 	Y = new double*[len];
 	for(int i=0; i<len; i++) 
 		Y[i] = new double[numvar];
@@ -150,7 +150,6 @@ PNPolytrope::PNPolytrope(double BigM, double BigR, double n, int L)
 	RK4integrate(len, dx,1);
 	f1 = setZsurf(Y[len-1]);
 	//check that end is at surface
-	// kappa = 1.3346e5;// cm^5/g/s^2
 	printf("sigma=%le\n", sigma);
 	printf("y1 = %le\n", Y[len-1][y]);
 	
@@ -526,7 +525,6 @@ double PNPolytrope::RK4integrate(const int Len, double dx){
 	//adjust sigma and φc0 based on surface values
 	φc0 -= (Y[X][u]*Y[X][x] + Y[X][phi]);
 	sigma = setSigma(Y[X]);
-	//sigma = fabs( (1.-pow(1.+zsurf,-2))/(2.*(n+1.)*u[X]*x[X]) );
 	return Y[X][y];
 }
 
@@ -569,7 +567,9 @@ double PNPolytrope::dPhidr(int X){
 	return (n+1.)*P0/rho0 * Y[X][u]/Rn;
 }
 double PNPolytrope::mr(int X){
-	//m = 4 pi Int[r^2 rho,r] = 4 pi Rn^3 rho0 Int[x^2 theta^n,x] = 4 pi Rn^3 rho0 x^2 dphi/dx
+	//m = 4 pi Int[r^2 rho,r] 
+	//  = 4 pi Rn^3 rho0 Int[x^2 theta^n,x] 
+	//  = 4 pi Rn^3 rho0 x^2 dphi/dx
 	return 4.*m_pi*rho0*pow(Rn,3)*Y[X][u]*pow(Y[X][x],2);
 }
 double PNPolytrope::Psi(int){
@@ -587,8 +587,9 @@ double PNPolytrope::Wz(int ){return 0.0;}
 double PNPolytrope::dWzdr(int ){return 0.0;}
 
 double PNPolytrope::sound_speed2(int X, double GamPert){
-	// vs2 = Gamma1 * P/(rho+P/c^2) = Gamma1* P0 y^n+1 /(rho0 y^n + P0 y^n+1/c2)
-	// vs2 = Gamma1*P0*y/(rho0 + P0 y/c^2)
+	// vs2 = Gamma1 * P/(rho+P/c^2) 
+	//     = Gamma1* P0 y^n+1 /(rho0 y^n + P0 y^n+1/c2)
+	//     = Gamma1*P0*y/(rho0 + P0 y/c^2)
 	if(GamPert==0.0) return Gamma  *P0/rho0*Y[X][y]/(1.0+sigma*Y[X][y]);
 	else             return GamPert*P0/rho0*Y[X][y]/(1.0+sigma*Y[X][y]);
 }
@@ -608,7 +609,6 @@ double PNPolytrope::getU(int X){
 	// U = 4piG*r*(rho + 3P - 2 rho*Phi)/g
 	if(X==0) return 3.0;
 	return Y[X][x]*pow(Y[X][y],n)*(1.+sigma*(3.*Y[X][y]-2.*(n+1.)*Y[X][phi]))/(Y[X][u]+sigma*Y[X][v]);
-//	return x[X]*base[X]*y[X]/u[X];
 }
 
 double PNPolytrope::getVg(int X, double GamPert){
@@ -619,8 +619,6 @@ double PNPolytrope::getVg(int X, double GamPert){
 double PNPolytrope::getC(int X){
 	if(X==0) return 0.5*Y[len-1][u]*Y[len-1][x]/(φc[1]+sigma*ψc[1]);
 	return (Y[len-1][u]/Y[len-1][x])*Y[X][x]/(Y[X][u]+sigma*Y[X][v]);
-//	if(X==0) return 3.*u[len-1]/x[len-1];
-//	return (u[len-1]/u[X]) * (x[X]/x[len-1]);
 }
 
 double PNPolytrope::Gamma1(int X){
@@ -696,8 +694,6 @@ void PNPolytrope::getUCenter(    double *Uc, int& maxPow){
 void PNPolytrope::getC1Center(   double *cc, int& maxPow){
 	double x1 = Y[len-1][x];
 	double u1 = Y[len-1][u];
-//	if(maxPow>=0) cc[0] = 3.*u1/x1;
-//	if(maxPow>=2) cc[1] =-3.*n*u1/(10.*x1)*pow(x1,2);
 	double u1x1 = x1*u1;
 	if(maxPow>=0) cc[0] = 0.5*u1x1/(φc[1]+sigma*ψc[1]);
 	if(maxPow>=2) cc[1] =    -u1x1*(φc[2]+sigma*ψc[2])*pow(φc[1]+sigma*ψc[1],-2);
@@ -712,8 +708,8 @@ void PNPolytrope::getBetaCenter( double *bc, int& maxPow, double g){
 	if(maxPow> 2) maxPow = 2; 
 }
 void PNPolytrope::getPhiCenter(  double *pc, int& maxPow){
-	if(maxPow>=0) pc[0] = φc0  /φs[0];//-(n+1.)*sigma*φc0  /zsurf;
-	if(maxPow>=2) pc[1] = φc[1]/φs[0];//-(n+1.)*sigma*φc[1]/zsurf;
+	if(maxPow>=0) pc[0] = φc0  /φs[0];
+	if(maxPow>=2) pc[1] = φc[1]/φs[0];
 	if(maxPow> 2) maxPow = 2;
 }
 
@@ -941,13 +937,11 @@ void PNPolytrope::writeStar(char *c){
 		1.0, A, U, V, C);
 	fclose(fp);	
 	//plot file in png in gnuplot
-	//gnuplot = popen("gnuplot -persist", "w");
 	fprintf(gnuplot, "reset\n");
 	fprintf(gnuplot, "set term png size 800,800\n");
 	fprintf(gnuplot, "set samples %d\n", length());
 	fprintf(gnuplot, "set output '%s'\n", outname);
 	fprintf(gnuplot, "set title 'Pulsation Coefficients for %s'\n", title);
-	//fprintf(gnuplot, "set xlabel 'log_{10} r/R'\n");
 	fprintf(gnuplot, "set xlabel 'r/R'\n");
 	fprintf(gnuplot, "set ylabel 'A*, U, V_g, c_1'\n");
 	fprintf(gnuplot, "set logscale y\n");
@@ -955,8 +949,7 @@ void PNPolytrope::writeStar(char *c){
 	fprintf(gnuplot, ",    '%s' u 1:3 w l t 'U'", txtname);
 	fprintf(gnuplot, ",    '%s' u 1:4 w l t 'V_g'", txtname);
 	fprintf(gnuplot, ",    '%s' u 1:5 w l t 'c_1'", txtname);
-	fprintf(gnuplot, "\n");
-	
+	fprintf(gnuplot, "\n");	
 	fprintf(gnuplot, "exit\n");
 	pclose(gnuplot);
 	
@@ -1059,15 +1052,13 @@ void PNPolytrope::printCoefficients(char *c){
 		);
 	}
 	fclose(fp);	
-	//plot file in png in gnuplot
-	//gnuplot = popen("gnuplot -persist", "w");
+	//plot file in png in gnuplot;
 	FILE *gnuplot = popen("gnuplot -persist", "w");
 	fprintf(gnuplot, "reset\n");
 	fprintf(gnuplot, "set term png size 1000,800\n");
 	fprintf(gnuplot, "set samples %d\n", length());
 	fprintf(gnuplot, "set output '%s'\n", outname);
 	fprintf(gnuplot, "set title 'Pulsation Coefficients for %s'\n", title);
-	//fprintf(gnuplot, "set xlabel 'log_{10} r/R'\n");
 	fprintf(gnuplot, "set xlabel 'r/R'\n");
 	fprintf(gnuplot, "set ylabel 'A*, U, V_g, c_1'\n");
 	fprintf(gnuplot, "set logscale y\n");
@@ -1113,8 +1104,6 @@ void PNPolytrope::printCoefficients(char *c){
 	fprintf(gnuplot, ",    '%s' u 1:(abs($6-$7)/abs($6)) w lp t 'Vg'", txtname);
 	fprintf(gnuplot, ",    '%s' u 1:(abs($8-$9)/abs($8)) w lp t 'c1'", txtname);
 	fprintf(gnuplot, "\n");
-	
-	//now leave gnuplot
 	fprintf(gnuplot, "exit\n");
 	pclose(gnuplot);
 }

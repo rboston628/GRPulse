@@ -263,7 +263,6 @@ double MESA::sound_speed2(int X, double GamPert){
 //	We can use general expressions for c1, A*, Vg, U in terms of coefficients of rho, P, T,
 //  The coefficients of rho, P, T are found by assuming a polytrope equation of state, P=P(rho)
 //  Then coefficients for rho can be found in terms of the polytrope solution
-//  This method allows for more flexibility, if we choose a different approximate EOS in center
 void MESA::setupCenter(){
 	nc = 1./(Gamma1(0)-1.);
 	double rho0 = dens->interp(0.0);
@@ -320,9 +319,6 @@ void MESA::getVgCenter(double *Vc, int& maxPow, double g){
 }
 
 void MESA::getUCenter(double *Uc, int& maxPow){
-//	if(maxPow>=0) Uc[0] = 3.0;
-//	if(maxPow>=2) Uc[1] = 6.*nc/5.*ac[2];
-//	if(maxPow>=4) Uc[2] = 12./7.*nc*ac[4]+(24./175.*nc-6./7.)*nc*ac[2]*ac[2];
 	if(maxPow>=0) Uc[0] = U0[0];
 	if(maxPow>=2) Uc[1] = U0[1];
 	if(maxPow>=4) Uc[2] = U0[2];
@@ -330,10 +326,6 @@ void MESA::getUCenter(double *Uc, int& maxPow){
 }
 
 void MESA::getC1Center(double *cc, int& maxPow){
-//	double term = 1./(4.*m_pi*dens->interp(0.0));
-//	if(maxPow>=0) cc[0] = 3.*term;
-//	if(maxPow>=2) cc[1] = -9.*nc/5.*ac[2]*term;
-//	if(maxPow>=4) cc[2] = ((9./14.+153.*nc/350.)*nc*ac[2]*ac[2] - 9.*nc/7.*ac[4])*term;
 	if(maxPow>=0) cc[0] = c0[0];
 	if(maxPow>=2) cc[1] = c0[1];
 	if(maxPow>=4) cc[2] = c0[2];
@@ -489,11 +481,6 @@ void MESA::getAstarSurface(double *As, int& maxPow, double g){
 void MESA::getVgSurface(double *Vs, int& maxPow, double g){
 	double gam1 = (g==0.0 ? Gam1->interp(radi[len-1]) : g);
 	int O=1;
-//	if(maxPow>= -1) Vs[O-1] = (1.5+1.)/gam1;
-//	if(maxPow>=  0) Vs[O  ] = 0.0;
-//	if(maxPow>=  1) Vs[O+1] = 0.0;
-//	if(maxPow>=  2) Vs[O+2] = -315./16./gam1;
-//	if(maxPow>=  3) Vs[O+3] = 1575./32./gam1;
 	if(maxPow>= -1) Vs[O-1] = V1[O-1]/gam1;
 	if(maxPow>=  0) Vs[O  ] = V1[O  ]/gam1;
 	if(maxPow>=  1) Vs[O+1] = V1[O+1]/gam1;
@@ -505,7 +492,6 @@ void MESA::getVgSurface(double *Vs, int& maxPow, double g){
 
 void MESA::getUSurface(double *Us, int& maxPow){
 // coefficients of U must extend up to order maxPow	
-//	for(int a=0; a<=maxPow; a++) Us[a] = 0.0;
 	if(maxPow>= 0) Us[0] = U1[0];
 	if(maxPow>= 1) Us[1] = U1[1];
 	if(maxPow>= 2) Us[2] = U1[2];
@@ -671,14 +657,12 @@ void MESA::printCoefficients(char *c){
 	}
 	fclose(fp);	
 	//plot file in png in gnuplot
-	//gnuplot = popen("gnuplot -persist", "w");
 	FILE *gnuplot = popen("gnuplot -persist", "w");
 	fprintf(gnuplot, "reset\n");
 	fprintf(gnuplot, "set term png size 1000,800\n");
 	fprintf(gnuplot, "set samples %d\n", length());
 	fprintf(gnuplot, "set output '%s'\n", outname);
 	fprintf(gnuplot, "set title 'Pulsation Coefficients for %s'\n", title);
-	//fprintf(gnuplot, "set xlabel 'log_{10} r/R'\n");
 	fprintf(gnuplot, "set xlabel 'r/R'\n");
 	fprintf(gnuplot, "set ylabel 'A*, U, V_g, c_1'\n");
 	fprintf(gnuplot, "set logscale y\n");
@@ -728,8 +712,6 @@ void MESA::printCoefficients(char *c){
 	fprintf(gnuplot, ",    '%s' u 1:(abs($10-$11)/abs($10)) w lp t 'Vg'", txtname);
 	fprintf(gnuplot, ",    '%s' u 1:(abs($12-$13)/abs($12)) w lp t 'c1'", txtname);
 	fprintf(gnuplot, "\n");
-	
-	//now leave gnuplot
 	fprintf(gnuplot, "exit\n");
 	pclose(gnuplot);
 }
@@ -782,7 +764,6 @@ void MESA::writeStar(char *c){
 	FILE *gnuplot = popen("gnuplot -persist", "w");
 	fprintf(gnuplot, "reset\n");
 	fprintf(gnuplot, "set term png size 1600,800\n");
-	//fprintf(gnuplot, "set samples %d\n", length());
 	fprintf(gnuplot, "set output '%s'\n", outname);
 	char title[256]; graph_title(title);
 	fprintf(gnuplot, "set title 'Profile for %s'\n", title);
@@ -790,9 +771,7 @@ void MESA::writeStar(char *c){
 	fprintf(gnuplot, "set ylabel 'rho/rho_c, P/P_c, m/M, g/g_S'\n");
 	fprintf(gnuplot, "set xrange [0:1]\n");
 	fprintf(gnuplot, "plot '%s' u 1:2 w l t 'rho'", txtname);
-	//fprintf(gnuplot, ", '%s' u 1:3 w l t '|drho/dr|'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:4 w l t 'P'", txtname);
-	//fprintf(gnuplot, ", '%s' u 1:5 w l t '|dP/dr|'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:6 w l t 'm'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:7 w l t 'g'", txtname);
 	fprintf(gnuplot, "\n");

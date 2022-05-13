@@ -26,10 +26,7 @@ double determinant(double (&m)[N][N]){
 				big=temp;
 				ipiv=i;
 			}
-		}
-		//if max element is 0, then singular matrix
-		//if(big==0.0) return 0.0;
-		
+		}		
 		//if max is not on diagonal, swap rows
 		if(ipiv != j){
 			for(k=0;k<N;k++){
@@ -49,12 +46,7 @@ double determinant(double (&m)[N][N]){
 				}
 			}	
 		}
-		//if the diagonal element is zero, this matrix is singular
-		else{
-		//	return 0.0;
-		}
-		det *= m[j][j];
-		
+		det *= m[j][j];	
 	}
 	det *= m[N-1][N-1];
 	return det;

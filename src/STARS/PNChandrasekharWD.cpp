@@ -509,7 +509,9 @@ double PNChandrasekharWD::dPhidr(int X){
 	return 8.*A0/B0*(u[X]/Rn);
 }
 double PNChandrasekharWD::mr(int X){
-	//m = 4 pi Int[r^2 rho,r] = 4 pi Rn^3 B Int[xi^2 h(x),xi] = 4 pi Rn^3 B xi^2 dphi/dxi
+	//m = 4 pi Int[r^2 rho,r] 
+	//  = 4 pi Rn^3 B Int[xi^2 h(x),xi] 
+	//  = 4 pi Rn^3 B xi^2 dphi/dxi
 	return 4.*m_pi*B0*pow(Rn,3)*u[X]*pow(xi[X],2);
 }
 double PNChandrasekharWD::Psi(int){
@@ -542,8 +544,9 @@ double PNChandrasekharWD::Gamma1(int X){
 }
 
 double PNChandrasekharWD::sound_speed2(int X, double GamPert){
-	// vs2 = Gamma1 * P/(rho+P/c^2) = Gamma1* P0 y^n+1 /(rho0 y^n + P0 y^n+1/c2)
-	// vs2 = Gamma1*P0*y/(rho0 + P0 y/c^2)
+	// vs2 = Gamma1 * P/(rho+P/c^2) 
+	//     = Gamma1* P0 y^n+1 /(rho0 y^n + P0 y^n+1/c2)
+	//     = Gamma1*P0*y/(rho0 + P0 y/c^2)
 	if(GamPert==0.0) return Gamma1(X)*A0/B0*f[X]/(h[X]+sigma*f[X]);
 	else             return GamPert  *A0/B0*f[X]/(h[X]+sigma*f[X]);
 }
@@ -625,7 +628,6 @@ double PNChandrasekharWD::SSR(){
 		e1 /= n1;
 		e2 /= n2;
 		e3 /= n3;
-		//printf("%le\t%le\t%le\t%le\n", r/R,e1,e2,e3);
 		checkPoiss += e1*e1;
 		checkEuler += e2*e2;
 		checkPsi   += e3*e3;	
@@ -702,8 +704,8 @@ void PNChandrasekharWD::getBetaCenter( double *bc, int& maxPow, double g){
 	if(maxPow> 2) maxPow = 2; 
 }
 void PNChandrasekharWD::getPhiCenter(  double *pc, int& maxPow){
-	if(maxPow>=0) pc[0] = φc[0]/φ[len-1];//-8.*sigma*φc0  /zsurf;
-	if(maxPow>=2) pc[1] = φc[1]/φ[len-1];//-8.*sigma*φc[2]/zsurf; //this order does not appear in equations
+	if(maxPow>=0) pc[0] = φc[0]/φ[len-1];
+	if(maxPow>=2) pc[1] = φc[1]/φ[len-1];//this order does not appear in equations
 	if(maxPow> 2) maxPow = 2;
 }
 
@@ -719,14 +721,13 @@ void PNChandrasekharWD::getPhiCenter(  double *pc, int& maxPow){
 //	If maxPow = 1, we need terms -1, 0
 //	If maxPow = 2, we need terms -1, 0, 1
 void PNChandrasekharWD::setupSurface(){
-	//zsurf = 8.*sigma*u[len-1]*xi[len-1];
 	double xi1 =  xi[len-1];
 	double xs1 = -dx[len-1]*xi1;
 	double φs1 = - u[len-1]*xi1;
 	double ψs1 = - v[len-1]*xi1;
 	//
 	ψs[0] = 0.0;
-	φs[0] = -zsurf/8./sigma;//φ[len-1];
+	φs[0] = -zsurf/8./sigma;
 	for(int i=1; i<4;i++) {
 		φs[i] = φs1;
 		ψs[i] = ψs1;
@@ -783,7 +784,7 @@ void PNChandrasekharWD::getBetaSurface(double *bs, int& maxPow, double g){
 	double Gam1 = (g==0.0 ? Gamma1(len-1) : g);
 	if(maxPow>=0) bs[0]  = 0.0;
 	if(maxPow>=1) bs[1]  = 0.0;
-	if(maxPow>=2) bs[2]  = 0.0;//Gam1*xs[1]*xs[1]/5./φs[0];
+	if(maxPow>=2) bs[2]  = 0.0;
 	if(maxPow> 2) maxPow = 2;
 }
 void PNChandrasekharWD::getPhiSurface(double *ps, int& maxPow){
@@ -852,9 +853,7 @@ void PNChandrasekharWD::writeStar(char *c){
 	fprintf(gnuplot, "set xlabel 'r/R'\n");
 	fprintf(gnuplot, "set ylabel 'rho/rho_c, P/P_c, m/M, g/g_S'\n");
 	fprintf(gnuplot, "plot '%s' u 1:2 w l t 'rho'", txtname);
-	//fprintf(gnuplot, ", '%s' u 1:3 w l t '|drho/dr|'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:4 w l t 'P'", txtname);
-	//fprintf(gnuplot, ", '%s' u 1:5 w l t '|dP/dr|'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:6 w l t 'm'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:7 w l t 'g'", txtname);
 	fprintf(gnuplot, "\n"); 
@@ -909,13 +908,11 @@ void PNChandrasekharWD::writeStar(char *c){
 		xi[len-1], A, U, V, C);
 	fclose(fp);	
 	//plot file in png in gnuplot
-	//gnuplot = popen("gnuplot -persist", "w");
 	fprintf(gnuplot, "reset\n");
 	fprintf(gnuplot, "set term png size 800,800\n");
 	fprintf(gnuplot, "set samples %d\n", length());
 	fprintf(gnuplot, "set output '%s'\n", outname);
 	fprintf(gnuplot, "set title 'Pulsation Coefficients for %s'\n", title);
-	//fprintf(gnuplot, "set xlabel 'log_{10} r/R'\n");
 	fprintf(gnuplot, "set xlabel 'r/R'\n");
 	fprintf(gnuplot, "set ylabel 'A*, U, V_g, c_1'\n");
 	fprintf(gnuplot, "set logscale y\n");
@@ -933,12 +930,8 @@ void PNChandrasekharWD::writeStar(char *c){
 	for(int X=1; X< length()-1; X++){
 		//N^2 = -g*A
 		N2 = -dPhidr(X)*Schwarzschild_A(X,5./3.);
-		//if(N2<0.0) N2 = 0.0;	//show a drop for negative N^2
-		//else N2 = log10(N2);
 		fprintf(fp, "%0.16le\t%0.16le\t%0.16le\n",
-			//1./(1.-mr(X)/Mass()),
 			P(X),
-			//xi[X]/xi[len-1],
 			N2,
 			2.*sound_speed2(X,0.)*pow(Rn*xi[X],-2));
 	}
@@ -949,20 +942,15 @@ void PNChandrasekharWD::writeStar(char *c){
 	fprintf(gnuplot, "set samples %d\n", length());
 	fprintf(gnuplot, "set output '%s'\n", outname);
 	fprintf(gnuplot, "set title 'Brunt-Vaisala for %s'\n", title);
-	//fprintf(gnuplot, "set xlabel 'log_{10} r/R'\n");
 	fprintf(gnuplot, "set logscale x 10\n");
 	fprintf(gnuplot, "set format x '10^{%%L}'\n");
 	fprintf(gnuplot, "set logscale y 10\n");
 	fprintf(gnuplot, "set format y '10^{%%L}'\n");
-	//fprintf(gnuplot, "set xlabel '-log_{10} (1-m/M)\n");
 	fprintf(gnuplot, "set xlabel 'log_{10} P\n");
 	fprintf(gnuplot, "set ylabel 'log_{10} N^2 & log_{10} L_1^2 (Hz^2)\n");
-	//fprintf(gnuplot, "set hidden3d noundefined\n");
 	fprintf(gnuplot, "set yrange [1e-6:1e2]\n");
-	//fprintf(gnuplot, "set xrange [1e5:1e24]\n");
 	fprintf(gnuplot, "plot '%s' u 1:2 w l t 'N^2'", txtname);
 	fprintf(gnuplot, ",    '%s' u 1:3 w l t 'L_1^2'", txtname);
-	//fprintf(gnuplot, ",    '%s' u 1:4 w l t 'L_2^2'", txtname);
 	fprintf(gnuplot, "\n");
 	
 	//

@@ -47,7 +47,6 @@ Isopycnic::Isopycnic(int L)
 	for(int X=1; X<len; X++){
 		//as we scan through x,y,z, set matching point where y[X] = 0.5
 		if(y[X-1]>0.5 & y[X+1]<=0.5) indexFit = X;
-		//if(x[X+1]>XS & x[X-1]<=XS) indexFit = X;
 		mass[X] = -4.*m_pi*x[X]*x[X]*z[X];
 	}
 	mass[len-1] = 8.0*m_pi*sqrt(6.0);

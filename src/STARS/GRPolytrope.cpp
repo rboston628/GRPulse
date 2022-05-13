@@ -301,7 +301,6 @@ void GRPolytrope::RK4step(double dx, double s, double yin[numvar], double yout[n
 		expL = std::exp(YC[la]);
 		twosig = 2.*s*(n+1.)*YCN.real()*YC[x];
 		//K = dy = dx*(dy/dx)
-		//K[y][a]  = dx*deriv(s, YC); //Tooper 1964, eq 2.25
 		K[v][a]  = dx*( YC[x]*YC[x]*YCN.real() ); //Tooper 1964, eq 2.27
 		K[la][a] = dx*( expL*(twosig - 1./YC[x]) + 1./YC[x] ); //Tooper 1964, eq 2.4
 		twosig *= s*YC[y];
@@ -459,7 +458,7 @@ double GRPolytrope::dgθθdr(int X){
 	return 2.*rad(X);
 }
 
-inline double GRPolytrope::sound_speed2(int X, double GamPert){
+double GRPolytrope::sound_speed2(int X, double GamPert){
 	//see Thorne RSSD eq 2.10
 	// vs2 = Gamma1 * P/(rho+P/c^2) = Gamma1* P0 y^n+1 /(rho0 y^n + P0 y^n+1/c2)
 	// vs2 = Gamma1*P0*y/(rho0 + P0 y/c^2)
@@ -467,17 +466,16 @@ inline double GRPolytrope::sound_speed2(int X, double GamPert){
 	else             return GamPert*P0/rho0*Y[X][y]/(1.0+sigma*Y[X][y]);
 }
 
-inline double GRPolytrope::Schwarzschild_A(int X, double GamPert){
+double GRPolytrope::Schwarzschild_A(int X, double GamPert){
 	if(GamPert==0.0) return dydx[X]/Y[X][y]/Rn* (n/(1.+sigma*Y[X][y])-(n+1.)/Gamma);
 	else             return dydx[X]/Y[X][y]/Rn* (n/(1.+sigma*Y[X][y])-(n+1.)/GamPert);
 }
 
-inline double GRPolytrope::getAstar(int X, double GamPert){
+double GRPolytrope::getAstar(int X, double GamPert){
 	if(GamPert==0.0) return Y[X][x]*dydx[X]/Y[X][y]* ((n+1.)/Gamma   - n/(1.+sigma*Y[X][y]));
 	else             return Y[X][x]*dydx[X]/Y[X][y]* ((n+1.)/GamPert - n/(1.+sigma*Y[X][y]));
 }
 
-// ***** check this one ***** //
 double GRPolytrope::getU(int X){
 	if(X==0) return 3.;
 	return pow(Y[X][x],3)*pow(Y[X][y],n)/Y[X][v];
@@ -506,7 +504,6 @@ double GRPolytrope::getXproper(int k){
 		dx = Y[i+1][x] - Y[i][x];
 		int1 = int2;
 		int2 = std::exp(0.5*Y[i+1][la]);
-	//	int2 = 1.0/std::sqrt(1.0 - twosign*Y[i+1][v]/Y[i+1][x]);
 		xbar += 0.5*dx*(int2+int1);
 	}
 	return xbar;
@@ -652,26 +649,6 @@ void GRPolytrope::getC1Surface(double *cs, int& maxPow){
 	if(maxPow> 2) maxPow = 2;
 }
 void GRPolytrope::getUSurface(double *Us, int& maxPow){
-/*	double x1 = x[len-1];
-	double θs1 = -z[len-1]*x1;
-	double φs1 = -u[len-1]*x1;
-	for(int a=0; a<maxPow; a++) Us[a] = 0.0;
-	
-	if(n==0){
-		if(maxPow>=0) Us[0] = -x1*x1/φs1;
-		if(maxPow>=1) Us[1] =  x1*x1*(3.*φs1 + x1*x1)/(φs1*φs1);
-		if(maxPow>=2) Us[2] = -x1*x1*(3.*φs1*φs1 +4.*x1*x1*φs1 + x1*x1*x1*x1)/(φs1*φs1*φs1);
-	}
-	else if(n==1){
-		if(maxPow>=0) Us[0] = 0.0;
-		if(maxPow>=1) Us[1] = -x1*x1*θs1/φs1;
-		if(maxPow>=2) Us[2] = x1*x1*(2.*θs1)/φs1 + 0.5*x1*x1*sigma*θs1;
-	}
-	else if(n==2){
-		if(maxPow>=0) Us[0] = 0.0;
-		if(maxPow>=1) Us[1] = 0.0;
-		if(maxPow>=2) Us[2] = -x1*x1*θs1*θs1/φs1;
-	}*/
 	if(maxPow>=0) Us[0] = 0.0;
 	if(maxPow>=1) Us[1] = 0.0;
 	if(maxPow>=2) Us[2] = 0.0;
@@ -685,7 +662,6 @@ void GRPolytrope::getNuSurface(double *ns, int& maxPow){
 	if(maxPow>=2) ns[2] = nus[2];
 	if(maxPow>=3) ns[3] = nus[3];
 	if(maxPow>=4) ns[4] = nus[4];
-//	for(int i=0; i<maxPow; i++) ns[i]=0.0;
 	if(maxPow> 4) maxPow = 4;
 }
 void GRPolytrope::getLambdaSurface(double *ll, int& maxPow){
@@ -728,163 +704,6 @@ double GRPolytrope::SSR(){
 	}
 	return sqrt((checkTOV1 + checkTOV2 + checkEuler)/double(3*len));
 }
-
-/*void GRPolytrope::printCoefficients(char *c){
-	char pathname[256];
-	char rootname[256];
-	char txtname[256];
-	char outname[256];
-
-	char command[300];
-	sprintf(pathname, "%s/wave_coefficient", c);
-	sprintf(command, "mkdir %s", pathname);
-	system(command);
-	
-	char title[256]; graph_title(title);
-	
-	//print the coefficients of the center and surface, for series analysis
-	sprintf(txtname, "%s/center.txt", pathname);
-	FILE *fp = fopen(txtname, "w");
-	double gam1 = 5./3.;
-	int bc = 2;
-	double A0[2], V0[2], c0[2], U0[2];
-	getAstarCenter(A0, bc, gam1);
-	getVgCenter(V0, bc, gam1);
-	getUCenter(U0, bc);
-	getC1Center(c0, bc);
-	fprintf(fp, "A*  :\t%0.16le\t%0.16le\n", A0[0],A0[1]);
-	fprintf(fp, "U   :\t%0.16le\t%0.16le\n", U0[0],U0[1]);
-	fprintf(fp, "Vg  :\t%0.16le\t%0.16le\n", V0[0],V0[1]);
-	fprintf(fp, "c1  :\t%0.16le\t%0.16le\n", c0[0],c0[1]);
-	fclose(fp);
-	sprintf(txtname, "%s/surface.txt", pathname);
-	fp = fopen(txtname, "w");
-	double A1[3], V1[3], c1[3], U1[3];
-	getAstarSurface(A1, bc, gam1);
-	getVgSurface(V1, bc, gam1);
-	getUSurface(U1, bc);
-	getC1Surface(c1, bc);
-	fprintf(fp, "A*  :\t%0.16le\t%0.16le\t%0.16le\n", A1[0],A1[1],A1[2]);
-	fprintf(fp, "U   :\t%0.16le\t%0.16le\t%0.16le\n", U1[0],U1[1],U1[2]);
-	fprintf(fp, "Vg  :\t%0.16le\t%0.16le\t%0.16le\n", V1[0],V1[1],V1[2]);
-	fprintf(fp, "c1  :\t%0.16le\t%0.16le\t%0.16le\n", c1[0],c1[1],c1[2]);
-	fclose(fp);
-	
-	//print fits to those coefficients at center and surface
-	int NC=15, NS=15;
-	sprintf(txtname, "%s/centerfit.txt", pathname);
-	fp = fopen(txtname, "w");
-	double x2 = 0.0, xi1 = Y[len-1][x];
-	fprintf(fp, "x           \tA*          \tA*_fit      \tU           \tU_fit       \tVg          \tVg_fit      \tc1          \tc1_fit\n");
-	for(int X=0; X<NC; X++){
-		x2 = Y[X][x]/xi1;
-		fprintf(fp, "%+12le\t%+12le\t%+12le\t%+12le\t%+12le\t%+12le\t%+12le\t%+12le\t%+12le\n",
-			x2,
-			getAstar(X, gam1),
-			A0[0] + A0[1]*x2*x2,
-			getU(X),
-			U0[0] + U0[1]*x2*x2,
-			getVg(X, gam1),
-			V0[0] + V0[1]*x2*x2,
-			getC(X),
-			c0[0] + c0[1]*x2*x2
-		);
-	}
-	fclose(fp);
-	sprintf(txtname, "%s/surfacefit.txt", pathname);
-	fp = fopen(txtname, "w");
-	double t = 1.;
-	fprintf(fp, "x           \tA*          \tA*_fit      \tU           \tU_fit       \tVg          \tVg_fit      \tc1          \tc1_fit\n");
-	for(int X=len-1; X>=len-NS-1; X--){
-		t = 1. - Y[X][x]/xi1;
-		fprintf(fp, "%+12le\t%+12le\t%+12le\t%+12le\t%+12le\t%+12le\t%+12le\t%+12le\t%+12le\n",
-			Y[X][x]/xi1,
-			getAstar(X, gam1),
-			A1[0]/t + A1[1] + A1[2]*t,
-			getU(X),
-			U1[0] + U1[1]*t + U1[2]*t*t,
-			getVg(X, gam1),
-			V1[0]/t + V1[1] + V1[2]*t,
-			getC(X),
-			c1[0] + c1[1]*t + c1[2]*t*t
-		);
-	}
-	fclose(fp);
-	
-	//print the pulsation coeffcients frequency
-	sprintf(txtname, "%s/coefficients.txt", pathname);
-	sprintf(outname, "%s/coefficients.png", pathname);
-	fp  = fopen(txtname, "w");
-	for(int X=0; X< length(); X++){
-		fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
-			Y[X][x]/xi1,
-			getAstar(X),
-			getU(X),
-			getVg(X),
-			getC(X)
-		);
-	}
-	fclose(fp);	
-	//plot file in png in gnuplot
-	//gnuplot = popen("gnuplot -persist", "w");
-	FILE *gnuplot = popen("gnuplot -persist", "w");
-	fprintf(gnuplot, "reset\n");
-	fprintf(gnuplot, "set term png size 1000,800\n");
-	fprintf(gnuplot, "set samples %d\n", length());
-	fprintf(gnuplot, "set output '%s'\n", outname);
-	fprintf(gnuplot, "set title 'Pulsation Coefficients for %s'\n", title);
-	//fprintf(gnuplot, "set xlabel 'log_{10} r/R'\n");
-	fprintf(gnuplot, "set xlabel 'r/R'\n");
-	fprintf(gnuplot, "set ylabel 'A*, U, V_g, c_1'\n");
-	fprintf(gnuplot, "set logscale y\n");
-	fprintf(gnuplot, "set ytics 100\n");
-	fprintf(gnuplot, "set format y '10^{%%L}'\n");
-	fprintf(gnuplot, "plot '%s' u 1:2 w l t 'A*'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:3 w l t 'U'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:4 w l t 'V_g'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:5 w l t 'c_1'", txtname);
-	fprintf(gnuplot, "\n");
-	pclose(gnuplot);
-	//fits
-	gnuplot = popen("gnuplot -persist", "w");
-	fprintf(gnuplot, "reset\n");
-	fprintf(gnuplot, "set term png size 1000,800\n");
-	sprintf(txtname, "%s/centerfit.txt", pathname);
-	sprintf(outname, "%s/centerfit.png", pathname);
-	fprintf(gnuplot, "set output '%s'\n", outname);
-	fprintf(gnuplot, "set title 'Central Fitting by Power Series for %s'\n", title);
-	fprintf(gnuplot, "set xlabel 'r/R'\n");
-	fprintf(gnuplot, "set ylabel 'difference'\n");
-	fprintf(gnuplot, "set logscale y\n");
-	fprintf(gnuplot, "set ytics 10\n");
-	fprintf(gnuplot, "set format y '10^{%%L}'\n");
-	fprintf(gnuplot, "set xrange [0:%le]\n", Y[NC][x]/xi1);
-	fprintf(gnuplot, "plot '%s' u 1:(abs($2-$3)/$2) w lp t 'A*'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:(abs($4-$5)/$4) w lp t 'U'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:(abs($6-$7)/$6) w lp t 'Vg'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:(abs($8-$9)/$8) w lp t 'c1'", txtname);
-	fprintf(gnuplot, "\n");
-	sprintf(txtname, "%s/surfacefit.txt", pathname);
-	sprintf(outname, "%s/surfacefit.png", pathname);
-	fprintf(gnuplot, "set output '%s'\n", outname);
-	fprintf(gnuplot, "set title 'Surface Fitting by Power Series for %s'\n", title);
-	fprintf(gnuplot, "set xlabel 'r/R'\n");
-	fprintf(gnuplot, "set ylabel 'difference'\n");
-	fprintf(gnuplot, "set logscale y\n");
-	fprintf(gnuplot, "set ytics 100\n");
-	fprintf(gnuplot, "set format y '10^{%%L}'\n");
-	fprintf(gnuplot, "set xrange [%le:1]\n", Y[len-NS-1][x]/xi1);
-	fprintf(gnuplot, "plot '%s' u 1:(abs($2-$3)/abs($2)) w lp t 'A*'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:(abs($4-$5)/abs($4)) w lp t 'U'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:(abs($6-$7)/abs($6)) w lp t 'Vg'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:(abs($8-$9)/abs($8)) w lp t 'c1'", txtname);
-	fprintf(gnuplot, "\n");
-	
-	//now leave gnuplot
-	fprintf(gnuplot, "exit\n");
-	pclose(gnuplot);
-}//*/
-
 
 //method to print pertinent values of star to .txt, and plot them in gnuplot
 void GRPolytrope::writeStar(char *c){
@@ -978,13 +797,11 @@ void GRPolytrope::writeStar(char *c){
 		1.0, A, U, V, C);
 	fclose(fp);	
 	//plot file in png in gnuplot
-	//gnuplot = popen("gnuplot -persist", "w");
 	fprintf(gnuplot, "reset\n");
 	fprintf(gnuplot, "set term png size 800,800\n");
 	fprintf(gnuplot, "set samples %d\n", length());
 	fprintf(gnuplot, "set output '%s'\n", outname);
 	fprintf(gnuplot, "set title 'Pulsation Coefficients for %s'\n", title);
-	//fprintf(gnuplot, "set xlabel 'log_{10} r/R'\n");
 	fprintf(gnuplot, "set xlabel 'r/R'\n");
 	fprintf(gnuplot, "set ylabel 'A*, U, V_g, c_1'\n");
 	fprintf(gnuplot, "set logscale y\n");
@@ -992,12 +809,9 @@ void GRPolytrope::writeStar(char *c){
 	fprintf(gnuplot, ",    '%s' u 1:3 w l t 'U'", txtname);
 	fprintf(gnuplot, ",    '%s' u 1:4 w l t 'V_g'", txtname);
 	fprintf(gnuplot, ",    '%s' u 1:5 w l t 'c_1'", txtname);
-	fprintf(gnuplot, "\n");
-	
+	fprintf(gnuplot, "\n");	
 	fprintf(gnuplot, "exit\n");
 	pclose(gnuplot);
-	
-//	printCoefficients(pathname);
 }
 
 #endif

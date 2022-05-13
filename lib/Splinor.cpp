@@ -64,7 +64,6 @@ double Splinor::interp(double xpos){
 				if(!wrap) xind = (xind >=0 ? 0 : len-2);
 				//if we've already wrapped, quit with error
 				else if (wrap){
-					//printf("ERROR: could not find that value, you cad!\n");
 					return nan("array wrap");
 				}
 				//set flag to note we've wrapped through array once
@@ -103,7 +102,6 @@ double Splinor::deriv(double xpos){
 				if(!wrap) xind = 0;
 				//if we've already wrapped, quit with error
 				else if (wrap){
-					//printf("ERROR: could not find that value, you cad!\n");
 					return nan("");
 				}
 				//set flag to note we've wrapped through array once

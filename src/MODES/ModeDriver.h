@@ -60,9 +60,7 @@ public:
 	virtual double SSR(double, int, ModeBase*) =0;
 	virtual double tidal_overlap(ModeBase*) =0;
 	virtual double innerproduct(ModeBase*, ModeBase*) =0;
-	
-	//virtual double test_eigenvalue(double, int) =0;
-	
+		
 	//the following two methods are added to make Mode agnostic
 	//provide the order of BCs to check in forming Wronskian
 	virtual void getBoundaryMatrix(int, double *, double*, double **, int*) =0;

@@ -13,11 +13,6 @@ double Chandrasekhar::factor_g(double x){
 		return 8.*x*x*x*(sqrt(1.+x*x) - 1.0) - factor_f(x);
 }
 	
-//	double factor_h(double x){
-//		return x*x*x + (A0/B0/C_CGS/C_CGS)*factor_g(x);
-//	}
-
-
 //methods usign the weights and abscissae of Sagar 1991
 //  these methods have tested accuracy for -1 < eta < 10
 //  for regions eta > 10, Sagar suggests using asymptotic approximation
@@ -68,33 +63,26 @@ double FermiDirac::FermiDirac(double k, double eta){
 //  here beta  = k*T/(m c^2)
 //  see Tooper 1969, ApJ 156
 double FermiDirac::FermiDirac(double k, double eta, double beta) {
-//	int k2 = 2*int(k);
-//	if      (k2 == 1) return FermiDirac1Half(eta,beta);
-//	else if (k2 == 3) return FermiDirac3Half(eta,beta);
-//	else if (k2 == 5) return FermiDirac5Half(eta,beta);
-	//if it isn't one of the cases covered below, then just use trapezoidal integration
-//	else {
-		double integral=0.0, int1=0.0, int2=0.0;
-		double x = 0.0, dx = eta/500.0;
-		while(x < 2.*eta){
-			x += dx;
-			int1 = int2;
-			int2 = pow(x,k)*sqrt(1.+0.5*beta*x)/(1. + exp(x-eta));
-			integral += 0.5*(int1+int2)*dx;
-		}
-		while(int2 > 1e-14){
-			dx = (x/100.0);
-			x += dx;
-			int1 = int2;
-			int2 = pow(x,k)*sqrt(1.+0.5*beta*x)/(1. + exp(x-eta));
-			integral += 0.5*(int1+int2)*dx;
-		}
+	double integral=0.0, int1=0.0, int2=0.0;
+	double x = 0.0, dx = eta/500.0;
+	while(x < 2.*eta){
 		x += dx;
 		int1 = int2;
 		int2 = pow(x,k)*sqrt(1.+0.5*beta*x)/(1. + exp(x-eta));
 		integral += 0.5*(int1+int2)*dx;
-		return integral;
-//	}
+	}
+	while(int2 > 1e-14){
+		dx = (x/100.0);
+		x += dx;
+		int1 = int2;
+		int2 = pow(x,k)*sqrt(1.+0.5*beta*x)/(1. + exp(x-eta));
+		integral += 0.5*(int1+int2)*dx;
+	}
+	x += dx;
+	int1 = int2;
+	int2 = pow(x,k)*sqrt(1.+0.5*beta*x)/(1. + exp(x-eta));
+	integral += 0.5*(int1+int2)*dx;
+	return integral;
 }
 //partial derivatives
 double FermiDirac::FermiDiracdelEta(double k, double eta, double beta) {

@@ -152,7 +152,6 @@ void NonradialModeDriver::setupBoundaries() {
 	cProds[3] = -pow(cs[1],3) + 2.*cs[1]*cs[2] - cs[3];
 	cProds[4] = 0.0;
 	k_surface = 0.0;// *** This needs to be re-implemented
-//	k_surface = structure_coefficients_surface[offset+indxC];
 }
 
 
@@ -290,7 +289,6 @@ int NonradialModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int
 		for(int i=0; i<num_var; i++){
 			ymode[i][X] = yy[i][0];
 			for(int k=1; k<=surface_bc_order; k++) ymode[i][X] += yy[i][k]*pow(t,k);
-			//ymode[i][X] += yyn[i]*pow(t, n+1);
 		}
 	}
 	return start;

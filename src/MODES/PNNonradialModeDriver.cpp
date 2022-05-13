@@ -537,7 +537,6 @@ int PNNonradialModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, i
 		for(int i=0; i<num_var; i++){
 			ymode[i][X] = yy[i][0];
 			for(int k=1; k<=surface_bc_order; k++) ymode[i][X] += yy[i][k]*pow(t,k);
-			//ymode[i][X] += yyn[i]*pow(t, n_surface+1.);
 		}
 	}
 	return start;

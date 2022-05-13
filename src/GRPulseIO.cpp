@@ -763,8 +763,6 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 				while(kmax < 0){
 					delete fmode[l_list[j]];
 					w2max = w2max + dw2;
-
-					//fmode[l_list[j]] = new Mode<NV1>(w2max, l_list[j],0,calcdata.driver);
 					kmax = fmode[j]->modeOrder();
 					//if we found it, quit
 					if(kmax == 0){

@@ -84,8 +84,8 @@ void GRCowlingModeDriver::initializeArrays(){
 	X = len_star-1;
 	A[X]  = 0.0;  
 	V[X]  = 0.0;
-	U1[X] = 0.0;//star->getU1(X);
-	U2[X] = 0.0;//star->getU2(X);
+	U1[X] = 0.0;
+	U2[X] = 0.0;
 	C[X]  = star->getC(X);
 }
 
@@ -310,8 +310,6 @@ int GRCowlingModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int
 			coeff[O-1][i][j] = Am1[i][j];
 			coeff[O+0][i][j] = A0[i][j];
 			coeff[O+1][i][j] = A1[i][j];
-//			coeff[O+2][i][j] = A2[i][j];
-//			coeff[O+3][i][j] = A3[i][j];
 		}
 	}
 	
@@ -340,13 +338,8 @@ int GRCowlingModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int
 		for(int i=0; i<num_var; i++){
 			ymode[i][X] = yy[i][0];
 			for(int k=1; k<=surface_bc_order; k++) ymode[i][X] += yy[i][k]*pow(t,k);
-			//ymode[i][X] += yyn[i]*pow(t, n_surface+1.);
 		}
 	}
-	
-	//the old BC
-//	ymode[y1][start] = ys[y1]*pow(r[len-2], 2-2*l);
-//	ymode[y2][start] = ys[y2]*pow(r[len-2], 2-2*l);
 	
 	return start;
 }//*/

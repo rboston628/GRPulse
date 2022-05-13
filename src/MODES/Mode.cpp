@@ -96,7 +96,6 @@ Mode<numvar>::Mode(int K, int L, int M, ModeDriver *drv)
 		if(Gamma1==0.0) Dn = star->Gamma1(0)*( ks*(ks+ell+0.5) ) - 2.0;
 		//omega^2 = Dn + sqrt( Dn^2 + l(l+1) )
 		omega2 = Dn + sqrt( Dn*Dn + ell*(ell+1.0) );
-		//if(omega2 < 0) omega2 = Dn - sqrt( Dn*Dn + ell*(ell+1.0) );
 		//from dimensional considerations, sigma^2 = (GM/R^3) *omega^2
 	}
 	//for g-modes
@@ -110,7 +109,6 @@ Mode<numvar>::Mode(int K, int L, int M, ModeDriver *drv)
 		sig1 = sig1*exp(-0.4*sqrt(-k));
 		//now convert freq back to sigma2
 		omega2 = (sig1*sig1)/nug; //sigma^2
-		//omega2 = omega2/sig2omeg;
 	}
 
 	//now we  converge to solution
@@ -268,9 +266,6 @@ void Mode<numvar>::convergeBisect(double tol){
 				if(wdx>w1) wdx *= 1.01;
 				if(wdx<w1) wdx *= 0.99;
 			}
-			//limit amount of change allowed in single step
-			//if(wdx > 1.1*w2) wdx = 1.1*w2;	//if we increased, don't increase too much
-			//if(wdx < 0.9*w2) wdx = 0.9*w2;	//if we decreased, don't decrease too much
 			Wdx = W2;
 			W2 = RK4center(wdx, yCenter, ySurface);
 			w2 = wdx;
@@ -375,12 +370,10 @@ void Mode<numvar>::linearMatch(double w2, double y0[numvar], double ys[numvar]){
 		for(int j=numvar/2; j<numvar; j++) A[i][j] =-DY[j][i]; // inward solutions -
 	}
 	
-	double aa[numvar] = {0.0}; //for(int i=0; i<num_var; i++) aa[i] = 0.0;
-	double bb[numvar] = {0.0}; //for(int i=0; i<num_var; i++) bb[i] = 0.0;
+	double aa[numvar] = {0.0};
+	double bb[numvar] = {0.0};
 	invertMatrix(A, bb, aa);
 	
-	//for(int i=0; i<numvar; i++) printf("%lf ", aa[i]);
-	//printf("\n");
 	//for the basis BCs we chose, this will be the properly scaled physical solution
 	//if we change the BCs, we must change these results to match
 	for(int a=0; a<numvar/2; a++){
@@ -556,7 +549,6 @@ void Mode<numvar>::writeMode(char *c){
 	double M = star->Mass();
 	for(int x=0; x<len; x++){
 		fprintf(fp, "%0.16le", rad[x]/R);
-		//fprintf(fp, "%0.16le", log(1.-star->mr(x)/M));
 		for(int a=0; a<num_var; a++) fprintf(fp, "\t%0.16le", y[a][x]);
 		fprintf(fp, "\n");
 	}
@@ -572,9 +564,7 @@ void Mode<numvar>::writeMode(char *c){
 	fprintf(gnuplot, "set ylabel 'log|y|'\n");
 	fprintf(gnuplot, "set logscale y\n");
 	fprintf(gnuplot, "set format y '10^{%%L}'\n");
-	//fprintf(gnuplot, "set xrange [-8:0]\n");
 	std::string varname[numvar]; driver->varnames(varname);
-	//fprintf(gnuplot, "set arrow 1 from 5e3,1e-6 to 2e5,15.6e-12 lc rgb 'red' nohead\n");
 	fprintf(gnuplot, "set arrow 1 from %le, graph 0 to %le, graph 1 lc rgb 'red' nohead\n", rad[xfit]/R, rad[xfit]/R);
 	fprintf(gnuplot, "plot ");
 	for(int a=0; a<numvar; a++){
