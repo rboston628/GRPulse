@@ -23,7 +23,8 @@ If you use this code for your research before official publication, cite tentati
 	title = {Newtonian and Relativistic White Dwarf Asteroseismology},
 	author = {Boston, S.~Reece},
 	school = {University of North Carolina},
-	year = {2022}
+	year = {2022},
+	doi = {10.17615/6a51-k954}
 }
 ````
 
