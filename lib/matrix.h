@@ -12,9 +12,9 @@
 //calculate the determinant of an NxN matrix
 //uses LU decomposition, based on GSL function
 //will destroy the matrix m
-template <size_t N>
-double determinant(double (&m)[N][N]){
-	double det=1.0, temp = 0.0, big = 0.0, ajj=0.0, coeff=0.0;
+template <size_t N, class T>
+T determinant(T (&m)[N][N]){
+	T det=1.0, temp = 0.0, big = 0.0, ajj=0.0, coeff=0.0;
 	int i=0,j=0,k=0,ipiv=0;
 	
 	for(j=0; j<N-1;j++){
@@ -26,7 +26,10 @@ double determinant(double (&m)[N][N]){
 				big=temp;
 				ipiv=i;
 			}
-		}		
+		}
+		//if max element is 0, then singular matrix
+		//if(big==0.0) return 0.0;
+		
 		//if max is not on diagonal, swap rows
 		if(ipiv != j){
 			for(k=0;k<N;k++){
@@ -46,7 +49,12 @@ double determinant(double (&m)[N][N]){
 				}
 			}	
 		}
-		det *= m[j][j];	
+		//if the diagonal element is zero, this matrix is singular
+		else{
+		//	return 0.0;
+		}
+		det *= m[j][j];
+		
 	}
 	det *= m[N-1][N-1];
 	return det;
@@ -55,12 +63,12 @@ double determinant(double (&m)[N][N]){
 //in equation Ax=b, invert NxN matrix A to solve for x
 //will destroy the matrix A
 //can handle equations Ax=0
-template <size_t N>
-int invertMatrix(double (&A)[N][N], double(&b)[N], double(&x)[N]){
+template <size_t N, class vartype>
+int invertMatrix(vartype (&A)[N][N], vartype(&b)[N], vartype(&x)[N]){
 //void invertMatrix(int N, double** A, double *b, double *x){
 	//a flag, in case we are soving homoegenous problem
 	bool HOMOGENEOUS = true;
-	double dummy = 0.0;
+	vartype dummy = 0.0;
 	for(int j=0; j<N; j++) HOMOGENEOUS &= (b[j]==0.0);
 	//reduce to row-echelon form
 	int L=0, indxBottom = N-1;	
@@ -83,7 +91,8 @@ int invertMatrix(double (&A)[N][N], double(&b)[N], double(&x)[N]){
 				}
 				//switch more rows to bottom as time goes on
 				indxBottom--;
-				if(indxBottom <= 0) {printf("I think your whole matrix is zero...\n"); return 1;}
+				if(indxBottom <= 0) {
+					printf("ERROR in invertMatrix: I think your whole matrix is zero...\n"); return 1;}
 				break;
 			}
 		}
@@ -108,14 +117,14 @@ int invertMatrix(double (&A)[N][N], double(&b)[N], double(&x)[N]){
 			}
 		}
 		//now that we have nonzero row, divide everthing by front element
-		double a = 1.0/A[i][L];
+		vartype a = 1.0/A[i][L];
 		b[i] *= a;
 		for(int j=0; j<N; j++){
 			A[i][j] *= a;
 		}
 		A[i][L] = 1.0;//set to one, for good measure
 		//now that we have a leading one, remove column elements below
-		double lead = 0.0;
+		vartype lead = 0.0;
 		for(int j=i+1; j<N; j++){
 			lead = A[j][L];
 			for(int k=0; k<N;k++){
@@ -161,7 +170,12 @@ int invertMatrix(double (&A)[N][N], double(&b)[N], double(&x)[N]){
 		for(int j=L+1; j<N; j++){
 			x[i] -= A[i][j]*x[j];
 		}
-	}	
+	}
+	bool produced_nan = false;
+	for(int i=0; i<N; i++){
+		if(isnan(x[i])) produced_nan = true;
+	}
+	if(produced_nan){printf("ERROR in invertMatrix: NaNs produced\n"); return 1;}
 	return 0;
 }
 

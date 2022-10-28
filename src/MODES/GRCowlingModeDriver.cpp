@@ -102,12 +102,13 @@ void GRCowlingModeDriver::getCoeff(
 	double (*CC)[num_var] =(double (*)[num_var]) CCI;
 	//avoid recalculations
 	double Ax, U1x, U2x, Cx, Vx;
-	Ax = A[2*X+b];
-	double expL = std::exp(star->Lambda(2*X+b));
-	U1x = U1[2*X+b];
-	U2x = U2[2*X+b];
-	Cx = C[2*X+b];
-	Vx = V[2*X+b];
+	int here = 2*X+b;
+	Ax = A[here];
+	double expL = std::exp(star->Lambda(here));
+	U1x = U1[here];
+	U2x = U2[here];
+	Cx = C[here];
+	Vx = V[here];
 	//dy1/dx
 	CC[0][0] = double(2-L) + Vx - 3. - U2x;
 	CC[0][1] = double(L*L+L)/(omeg2*Cx) - Vx;
@@ -181,7 +182,7 @@ void GRCowlingModeDriver::setupBoundaries() {
 }
 
 int GRCowlingModeDriver::CentralBC(double **ymode, double *y0, double omeg2, int l, int m){	
-	double yy[num_var][central_bc_order/2+1];//0,2,4
+	double yy[num_var][BC_C/2+1];//0,2,4
 	double L = double(l);
 	double L2 = double(l*l+l);
 	double Gam1 = (adiabatic_index == 0.0 ? star->Gamma1(0) : adiabatic_index);
@@ -246,7 +247,7 @@ int GRCowlingModeDriver::CentralBC(double **ymode, double *y0, double omeg2, int
 
 int GRCowlingModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int l, int m){
 	//specify initial conditions at surface
-	double yy[num_var][surface_bc_order+1];	//coefficients y = yy[0] + yy[1]t + ... + yy[k]t^k
+	double yy[num_var][BC_S+1];	//coefficients y = yy[0] + yy[1]t + ... + yy[k]t^k
 	double yyn[num_var] = {0.0};
 	//constants that show up
 	double L  = double(l);
@@ -259,7 +260,7 @@ int GRCowlingModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int
 	
 	//set up the matrix of surface coefficients -- terms with l or omeg2 are not included
 	double A11, A12, A21, A22;
-	int O = 1; //anchor index
+	const int O = 1; //anchor index
 	//the matrix A(-1)
 	A11 =  Vgs[O-1];
 	A12 = -Vgs[O-1];
@@ -302,7 +303,7 @@ int GRCowlingModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int
 	};	
 	
 	
-	double coeff[O+surface_bc_order][num_var][num_var];
+	double coeff[O+BC_S][num_var][num_var];
 	double RHS[num_var], ynext[num_var]={0.};
 	
 	for(int i=0; i<num_var; i++){

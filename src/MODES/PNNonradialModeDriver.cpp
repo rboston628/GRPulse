@@ -206,7 +206,7 @@ void PNNonradialModeDriver::setupBoundaries() {
 	phic0 = read[0]; //phic2 != 0. but does not appear in equations
 		
 	//set up coefficients for the surface boundary
-	int indxAll=surface_bc_order+1;
+	const int indxAll=BC_S+1;
 	double As[indxAll], Vgs[indxAll], Us[indxAll],
 		 betas[indxAll], phis[indxAll];
 	double Vgn=0, Usn=0, Asn=0;
@@ -417,7 +417,7 @@ int PNNonradialModeDriver::CentralBC(double **ymode, double *y0, double omeg2, i
 	double Gam1 = (adiabatic_index == 0.0 ? star->Gamma1(0) : adiabatic_index);
 	double z = zsurf;
 	
-	double yy[num_var][central_bc_order/2+1];
+	double yy[num_var][BC_C/2+1];
 	//the zero-order terms are simple
 	y0[1] = y0[0]*cc[0]*omeg2/double(l);//initial chi
 	y0[3] = y0[2]*double(l);			//initial d(DPhi)/dr
@@ -474,11 +474,11 @@ int PNNonradialModeDriver::CentralBC(double **ymode, double *y0, double omeg2, i
 
 int PNNonradialModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int l, int m){
 	//specify initial conditions at surface
-	double yy[ num_var][surface_bc_order+1];
+	double yy[ num_var][BC_S+1];
 	double yyn[num_var] = {0.0};
 	
 	int O=1; //anchor index
-	double RHS[num_var], coeff[3][num_var][num_var], Am1[num_var][num_var], ynext[num_var];
+	double RHS[num_var], coeff[BC_S+1][num_var][num_var], Am1[num_var][num_var], ynext[num_var];
 	//update the coefficient matrices at the surface
 	updateSurface(coeff, omeg2, l);
 		
@@ -503,7 +503,9 @@ int PNNonradialModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, i
 			}
 			Am1[i][i] += double(k+1);
 		}
-		invertMatrix(Am1, RHS, ynext);
+		if(invertMatrix(Am1, RHS, ynext)){
+			printf("surface %d\n", k+1);
+		}
 		for(int i=0; i<num_var; i++) yy[i][k+1] = ynext[i];
 	}
 	
@@ -537,6 +539,7 @@ int PNNonradialModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, i
 		for(int i=0; i<num_var; i++){
 			ymode[i][X] = yy[i][0];
 			for(int k=1; k<=surface_bc_order; k++) ymode[i][X] += yy[i][k]*pow(t,k);
+			//ymode[i][X] += yyn[i]*pow(t, n_surface+1.);
 		}
 	}
 	return start;
@@ -634,11 +637,11 @@ double PNNonradialModeDriver::SSR(double omega2, int l, ModeBase* mode) {
 		//Now calculate residuals
 		//Perturbed Poisson equation
 		e1 = fabs(
-				4.0*m_pi*Drho
+				4.0*m_pi*Gee*Drho
 				+ L2*pow(r,-2)*DPhi 
 				- 2.0*dDPhi/r  - d2DPhi
 		);
-		n1 = fabs(4.0*m_pi*Drho )
+		n1 = fabs(4.0*m_pi*Gee*Drho )
 				+ fabs( L2*pow(r,-2)*DPhi )
 				+ fabs( 2.0*dDPhi/r ) + fabs( d2DPhi )
 		;
@@ -653,10 +656,10 @@ double PNNonradialModeDriver::SSR(double omega2, int l, ModeBase* mode) {
 				+ ( fabs(rho+P/cee2)+fabs(2.*rho*Phi)/cee2 )*( fabs(2.*xi/r)+fabs(difxi)+fabs(L2*pow(r,-2)/freq2*chi) )
 		;
 		//newton's equation -- the r component. The theta component defines chi
-		e3 = fabs( -(rho+P-4.*rho*Phi)*freq2*xi + dDP + rho*dDPhi + g*Drho
- 				+ rho*dDPsi + Drho*gPN + P*dDPhi + DP*g + 4.*rho*freq*DWR );
- 		n3 = ( fabs(rho+P)+fabs(4.*rho*Phi) )*fabs(freq2*xi) + fabs( dDP ) + fabs( rho*dDPhi ) + fabs( g*Drho )
- 				+ fabs(rho*dDPsi) + fabs(Drho*gPN) + fabs(P*dDPhi) + fabs(DP*g) + fabs(4.*rho*freq*DWR);
+		e3 = fabs( -(rho+(P-4.*rho*Phi)/cee2)*freq2*xi + dDP + rho*dDPhi + g*Drho
+ 				+ ( rho*dDPsi + Drho*gPN + P*dDPhi + DP*g + 4.*rho*freq*DWR )/cee2 );
+ 		n3 = ( fabs(rho+P/cee2)+fabs(4.*rho*Phi/cee2) )*fabs(freq2*xi) + fabs( dDP ) + fabs( rho*dDPhi ) + fabs( g*Drho )
+ 				+ ( fabs(rho*dDPsi) + fabs(Drho*gPN) + fabs(P*dDPhi) + fabs(DP*g) + fabs(4.*rho*freq*DWR) )/cee2;
 		//normalize residuals
 		e1 = e1/n1;
 		e2 = e2/n2;

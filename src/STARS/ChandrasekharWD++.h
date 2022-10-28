@@ -1,11 +1,12 @@
 //**************************************************************************************
 //							CHANDRASEKHAR WHITE DWARF
-// ChandrasekharWD.h
+// ChandrasekharWD++.h
 // 		This is a model of a WD based on the equation (13)  of Chandrasekhar 1935
 //			based on a cold degenerate electron gas equation of state
 //			Chandrasekhar defines a variable y in equation (12)
 //		This model assumes T=0, and ignores Coulombic and other effects
-//		Future step will be to adjust the composition, include finite T effects
+//		The surface is not treated in any special way
+//		Updated to include a chemical profile, indicated by mu_electron
 // **************************************************************************************/
 
 #ifndef ChandrasekharWDH
@@ -22,9 +23,12 @@ public:
 	}
 	
 	//the constructors
-	ChandrasekharWD(double, double, int);
-	ChandrasekharWD(double, int, const double);
-	virtual ~ChandrasekharWD(); //destructor
+	void basic_setup();
+	void init_arrays();
+	ChandrasekharWD(double, int,               double MU0, double K, double AC, double AS);
+	ChandrasekharWD(double, int,               double mu,  double AN, double BN);
+	ChandrasekharWD(double, int, const double, double MU0, double K, double AC, double AS);
+	virtual ~ChandrasekharWD();   //destructor
 	int length(){return len;}
 	//these three functions specify units
 	double Radius();	//total radius
@@ -34,10 +38,10 @@ public:
 	double light_speed2();
 	
 	//these return value of indicated variable -- used in testing
-	double getXi(int X){return xi[X];}
-	double getX(int X){return x[X];}
-	double getY(int X){return y[X];}
-	double getYderiv(int X){return z[X];}
+	double getXi(int X){return Y[X][xi];}
+	double getX(int X){return Y[X][x];}
+	double getY(int X){return Y[X][y];}
+	double getYderiv(int X){return Y[X][z];}
 	
 	double rad(int);
 	double rho(int), drhodr(int);
@@ -56,29 +60,41 @@ public:
 private:
 	double Y0;		// central value of y, y^2=1+x^2
 	double X0, X02, Y02;
-	//the values of K, rho0, P0 relate to the choice of units and scale factors
-	//going to set all to 1
-	//to rescale, basically "finish" the part of Rn we left off, sqrt[Pc/(Grho^2)]
-	// radius scales like Rn
-	// mass scales like rho0*Rn3
-	double A0;		//central pressure
-	double B0;		//central density
-	double Rn;		//radius scale factor
+	double A0;		//pressure scale
+	double B0;		//density scale
+	double Rn;		//radius scale
 	int len;
-	//lane-emden solution functions
-	double *xi;	//normalized radius
-	double *x;  //the relativity factor x = pF/mc
-	double *y;	//Chandrasekhar's y, y^2=1+x^2
-	double *z;	//derivative (dy/dxi)  note: dx/dxi = (dy/dxi)/x
+	double dxi;
+	
+	//solution functions
+	enum VarName {
+		xi=0,	//normalized radius
+		x, 		//the relativity factor x = pF/mc
+		y,		//Chandrasekhar's y
+		z,		//derivative dy/dxi
+		f,		//factor f, for P = A f(x)
+		numvar
+	};
+	double **Y;
+	//for the mass
 	double *mass;
-	double *f;
 		
+	//parameters of the chemical profile
+	double mu0, k, acore, aswap;
+	void chemical_gradient(const double, const double, double&, double&);
+	
+	
+	//to handle chemical profile
+	double* mue;   //mean atomic mass per electron
+	double* dmue;  //derivative of above
 	//integrate using basic RK4
+	void centerInit(double ycenter[numvar]);
+	void RK4step(double dx, double yin[numvar], double yout[numvar]);
 	double RK4integrate(const int, double);
 	int RK4integrate(const int, double, int);
 	
 	//methods for handling the BCs
-	double yc[4], xc[2], fc[2];	//series coefficients of y,x,f near center
+	double yc[4], xc[3], fc[2];	//series coefficients of y,x,f near center
 	void setupCenter();		//prepare values near center
 	void setupSurface();	//prepare values near surface
 	
@@ -96,7 +112,7 @@ public:
 	//a particular output generation for this model of white dwarf
 	void writeStar(char *c=NULL);
 private:
-	void printCoefficients(char *c);
+	void printChemicalGradient(char *c);
 };
 
 #endif

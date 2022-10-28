@@ -5,11 +5,14 @@
 #include "../src/constants.h"
 
 namespace Chandrasekhar {
+//	const double A0 = 6.002332e22;
+//	const double B0 = 9.81019e5;
 	const double A0 = 6.0406e22;
 	const double B0 = 9.8848e5;
 
 	double factor_f(double x);
 	double factor_g(double x);
+	double factor_h(double x, double, double);
 };
 
 namespace FermiDirac {

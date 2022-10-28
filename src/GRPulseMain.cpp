@@ -7,6 +7,8 @@
 //
 //**************************************************************************************
 
+
+#include "distribution.h"
 #include "GRPulseMain.h"
 #include "GRPulseIO.h"
 

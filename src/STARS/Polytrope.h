@@ -52,6 +52,9 @@ public:
 	double Gamma1(int);
 	double sound_speed2(int, double GamPert=0.0);
 	
+		
+	void writeStar(char *c=NULL);
+	
 private:
 	int len;
 	double n;		//polytropic index

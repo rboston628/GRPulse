@@ -162,7 +162,7 @@ void NonradialModeDriver::setupBoundaries() {
 //	For the derivation of this algorithm, see Mathematica notebook NewtonianBCs.nb
 //	The expansions must be in terms of x = r/R
 int NonradialModeDriver::CentralBC(double **ymode, double *y0, double omeg2, int l, int m){
-	double yy[num_var][central_bc_order/2+1];//0,2,4
+	double yy[num_var][BC_C/2+1];//0,2,4
 	//the zero-order terms are simple
 	yy[y1][0] = y0[0];
 	yy[y2][0] = y0[0]*C[0]*omeg2/double(l);
@@ -224,7 +224,7 @@ int NonradialModeDriver::CentralBC(double **ymode, double *y0, double omeg2, int
 int NonradialModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int l, int m){
 	//int surface_bc_order = 4;
 	//specify initial conditions at surface
-	double yy[num_var][surface_bc_order+1];	//coefficients y = yy[0] + yy[1]t + ... + yy[k]t^k
+	double yy[num_var][BC_S+1];	//coefficients y = yy[0] + yy[1]t + ... + yy[k]t^k
 	double yyn[num_var]; for(int i=0;i<num_var;i++) yyn[i]=0.0;
 	yy[0][0] = ys[0];
 	yy[1][0] = ys[0] + ys[2];
@@ -289,6 +289,7 @@ int NonradialModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int
 		for(int i=0; i<num_var; i++){
 			ymode[i][X] = yy[i][0];
 			for(int k=1; k<=surface_bc_order; k++) ymode[i][X] += yy[i][k]*pow(t,k);
+			//ymode[i][X] += yyn[i]*pow(t, n+1);
 		}
 	}
 	return start;

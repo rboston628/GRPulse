@@ -17,9 +17,9 @@
 #include "GRPolytrope.h"
 
 //initalize polytrope from index and length
-GRPolytrope::GRPolytrope(double n, double z, int L)
-	: n(n), zsurf(z), len(L), Gamma(1.0+1.0/n), 
-			sigma( (1.-pow(1.+z,-2))/(2.*(n+1)) )
+GRPolytrope::GRPolytrope(double n, double zsurf, int L)
+	: n(n), zsurf(zsurf), len(L), Gamma(1.0+1.0/n), 
+			sigma( (1.-pow(1.+zsurf,-2))/(2.*(n+1)) )
 {
 	printf("Making GR polytrope N=%1.1f, z=%le\n", n,zsurf);
 	//if index is out of range, fail
@@ -40,124 +40,44 @@ GRPolytrope::GRPolytrope(double n, double z, int L)
 	//name this polytrope for files
 	sprintf(name, "GRpolytrope%1.1f_%1.1f", n, sigma);
 	
+	Y = new double*[len];
+	for(int i=0;i<len;i++)
+		Y[i] = new double[numvar];	
+	
 	//we find an appropriate grid spacing for array holding star data
 	//we need for dx to be such that the integration ends with y[len-1]=0.0
 	//we will find the proper dx with a bisection search
 	
-	//an initial guess
-	double dx = sqrt(6.0)/(len-1), yS=1.0, ddx = dx;
-	Y = new double*[len];
-	for(int i=0;i<len;i++) Y[i] = new double[numvar];
+	//an initial guess based on uniform density star -- slightly larger
+	double dx = 2.*sqrt(6.0)/(len-1);
+	//run one test-run to adjust dx
+	RK4integrate(sigma, dx);
 	
-	double dxmax=1.0, dxmin=0, ySmax=-1.0, ySmin=1.0;
+	//use a 2D Newton's method to find sigma, dx simultaneously
+	size_t const np=2;
+	double z1[np] = {sigma, dx};
+	double dz[np] = {0.1*sigma, dx};
+	double target[np] = {zsurf, 0.0};
+	// require the zsurf to match at surface, and theta to vanish there
+	std::function<void(double[np],double[np])> match_zsurf = [this](double f[np], double x[np]){
+		this->RK4integrate(x[0], x[1]);
+		f[0] = std::exp(0.5*this->Y[len-1][la]) - 1.;
+		f[1] = this->Y[len-1][y];
+	};
+	// both sigma and dx are limited to be positive
+	std::function<bool(double[np])> sign_limit = [](double z[np])->bool{
+		return (z[0]>0.0)&&(z[1]>0.0);
+	};
+	//now run the newtonian searc
+	newton_search<np>(match_zsurf, target, z1, dz, 1.e-13, 1000, sign_limit);
+	sigma = z1[0];
+	dx = z1[1];	
 	
-	//we first find reasonable values of the parameters sigma
-	int tracker = 0;
-	double s1 = sigma, ds = 0.01*sigma, dds=sigma;
-	double target = zsurf, f1 = RK4integrate(s1, dx), f2 = RK4integrate(s1+ds, dx);
-	printf("target = \t%0.16le\n", target);
-	printf("result = \t%0.16le\n", f1);
-	while(fabs(dds) > 1.e-16 && tracker<100){
-		dds = ds*(target-f1)/(f2-f1);
-		s1 = s1 + dds;
-		ds = dds;
-		f1 = RK4integrate(s1,   dx);
-		f2 = RK4integrate(s1+ds,dx);
-		printf("result = \t%0.26le\t %0.26le\t %0.26le\n", f1, s1, dds);
-		tracker++;
-	}
-	sigma = s1;
-	f1 = RK4integrate(sigma, dx);
-	tracker=0;
-	while(fabs(f1-target) > 1.e-16 && tracker<100){
-		f1 = RK4integrate(sigma,dx);
-		printf("result = \t%0.26le\t %0.26le\n", f1, sigma);
-		tracker++;
-	}
-	printf("done\n");
-	printf("target = \t%0.16le\n", target);
-	printf("result = \t%0.16le\n", f1);
-		
-	yS = RK4integrate(len, dx);
-	//find brackets on dx that bound a zero in yS
-	if(yS > 0){
-		dxmin = dx; ySmin = yS;
-		while(yS > 0 || isnan(yS)){
-			dx += ddx;
-			yS = RK4integrate(len, dx);
-			if(isnan(yS)){
-				if(n!= int(n)) yS = -1.0;
-				else {
-					dx = 1.0/len; ddx *= 0.1; yS = 1.0;
-				}
-			}
-		}
-		dxmax = dx; ySmax = yS;
-	}
-	else if (yS < 0){
-		dxmax = dx; ySmax = yS;
-		while(yS < 0){
-			dx = 0.99*dx;
-			yS = RK4integrate(len,dx);
-		}
-		dxmin = dx; ySmin = yS;
-	}
-	dx = 0.5*(dxmin+dxmax);
-	yS = RK4integrate(len, dx);
-	
-	//some possible errors that might occur
-	if(dx<0)              {printf("somehow dx is negative...\n"); dx=-dx;}
-	if(ySmin*ySmax > 0.0) {printf("big problem, chief\n"); exit(EXIT_FAILURE);}
-	
-	//now use bisection to find dx so that yS=0.0
-	int stop = 1;
-	double dxold = 1.0;
-	int a=53, b=122, r=17737, ok = 39;//for pseudorandom positioning
-	while( fabs(yS)>1.e-16 || isnan(yS) ){
-		dx = (dxmin+dxmax)/2.0;
-		yS = RK4integrate(len, dx);
-		
-		if(isnan(yS)){
-			yS = -1.0;
-		}
-		if( (yS*ySmax>0.0) ){
-			dxmax = dx;
-			ySmax = yS;
-		}
-		else if( (yS*ySmin>0.0) ){
-			dxmin = dx;
-			ySmin = yS;
-		}
-		//if the brackets are not moving, stop the search
-		if(dxold == fabs(dxmin-dxmax)){
-			break;
-			ok = (a*ok+b)%r; //generates a psuedo-random integer in (0,r)
-			dx = dxmin + (double(ok)/double(r))*fabs(dxmax-dxmin);
-			yS = RK4integrate(len, dx);
-			if(isnan(yS)){
-				yS = -1.0;
-			}
-			if( (yS*ySmax>0.0) ){
-				dxmax = dx;
-				ySmax = yS;
-			}
-			else if( (yS*ySmin>0.0) ){
-				dxmin = dx;
-				ySmin = yS;
-			}
-			dxold = fabs(dxmin-dxmax);
-		}
-		dxold = fabs(dxmin-dxmax);
-	}
-	
-	sigma = setSigma(Y[len-1]);
 	RK4integrate(len, dx, 1);
-	
 	printf("sigma = \t%le\n", sigma);
 	printf("zsurf = \t%le %le\n", zsurf, setZsurf(Y[len-1]));
-	zsurf = setZsurf(Y[len-1]);
-	
-	
+	printf("edge  = \t%le\n", Y[len-1][y]);
+		
 	//set initial density, pressure
 	//if we use units c2=1, then P0 = sigma
 	rho0 = 1.0;
@@ -331,11 +251,14 @@ double GRPolytrope::RK4integrate(double s, double& dx){
 		RK4step(dx, s, y1, y2);
 		X++;
 		//a possible error occurs when theta never reaches 0
-		if(X>2*len) return setZsurf(y1);
+		if(X>2+len) break; 
 	}
 	//a possible error occurs if the second step is zero, making dx=0
 	if(y1[x] != 0.0) dx = y1[x]/(len+1);
 	//return guess for z in terms of field
+	for(int b=0; b<numvar; b++){
+		Y[len-1][b] = y1[b];
+	}
 	return setZsurf(y1);
 }
 
@@ -509,8 +432,8 @@ double GRPolytrope::getXproper(int k){
 	return xbar;
 }
 
-double GRPolytrope::Radius(){return rad(len-1);}	//total radius
-double GRPolytrope::Mass(){return mr(len-1);}//total mass
+double GRPolytrope::Radius(){return rad(len-1);} //total radius
+double GRPolytrope::Mass(){return mr(len-1);}    //total mass
 
 // **************************  CENTRAL BOUNDARY **************************************
 // the following provide coefficients for central expansions of A*, Vg, U, c1 in trms of x=r/R
@@ -649,6 +572,26 @@ void GRPolytrope::getC1Surface(double *cs, int& maxPow){
 	if(maxPow> 2) maxPow = 2;
 }
 void GRPolytrope::getUSurface(double *Us, int& maxPow){
+/*	double x1 = x[len-1];
+	double θs1 = -z[len-1]*x1;
+	double φs1 = -u[len-1]*x1;
+	for(int a=0; a<maxPow; a++) Us[a] = 0.0;
+	
+	if(n==0){
+		if(maxPow>=0) Us[0] = -x1*x1/φs1;
+		if(maxPow>=1) Us[1] =  x1*x1*(3.*φs1 + x1*x1)/(φs1*φs1);
+		if(maxPow>=2) Us[2] = -x1*x1*(3.*φs1*φs1 +4.*x1*x1*φs1 + x1*x1*x1*x1)/(φs1*φs1*φs1);
+	}
+	else if(n==1){
+		if(maxPow>=0) Us[0] = 0.0;
+		if(maxPow>=1) Us[1] = -x1*x1*θs1/φs1;
+		if(maxPow>=2) Us[2] = x1*x1*(2.*θs1)/φs1 + 0.5*x1*x1*sigma*θs1;
+	}
+	else if(n==2){
+		if(maxPow>=0) Us[0] = 0.0;
+		if(maxPow>=1) Us[1] = 0.0;
+		if(maxPow>=2) Us[2] = -x1*x1*θs1*θs1/φs1;
+	}*/
 	if(maxPow>=0) Us[0] = 0.0;
 	if(maxPow>=1) Us[1] = 0.0;
 	if(maxPow>=2) Us[2] = 0.0;
@@ -709,25 +652,21 @@ double GRPolytrope::SSR(){
 void GRPolytrope::writeStar(char *c){
 	//create names for files to be opened
 	char pathname[256];
-	char rootname[256];
 	char txtname[256];
 	char outname[256];
 	if(c==NULL)	sprintf(pathname, "./out/%s", name);
 	else{
 		sprintf(pathname, "./%s/star/", c);
 	}
+	char command[300];
+	sprintf(command, "mkdir -p %s", pathname);
+	
+	
 	sprintf(txtname, "%s/%s.txt", pathname, name);
 	sprintf(outname, "%s/%s.png", pathname, name);
 
-	FILE *fp;
-	if(!(fp = fopen(txtname, "w")) ){
-		char command[256];
-		sprintf(command, "mkdir -p %s", pathname);
-		system(command);
-		fp = fopen(txtname, "w");
-	}
-	
-	
+	FILE *fp = fopen(txtname, "w");
+
 	//print results to text file
 	// radius rho pressure gravity
 	double irc=1./rho(0), ipc=1./P(0), R=Radius(), ig=1./dPhidr(length()-1), MT = Mass();
@@ -752,66 +691,15 @@ void GRPolytrope::writeStar(char *c){
 	fprintf(gnuplot, "set xlabel 'r/R'\n");
 	fprintf(gnuplot, "set ylabel 'rho/rho_c, P/P_c, m/M, g/g_S'\n");
 	fprintf(gnuplot, "plot ");
-	fprintf(gnuplot, " '%s' u 1:2 w l t 'rho'", txtname);
+	fprintf(gnuplot, "  '%s' u 1:2 w l t 'rho'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:4 w l t 'P'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:6 w l t 'm'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:7 w l t 'nu'", txtname);
 	fprintf(gnuplot, ", '%s' u 1:8 w l t 'lambda'", txtname);
 	fprintf(gnuplot, "\n");
 	
-	//print the pulsation coeffcients frequency
-	sprintf(txtname, "%s/coefficients.txt", pathname);
-	sprintf(outname, "%s/coefficients.png", pathname);
-	fp  = fopen(txtname, "w");
-	int maxpow=2;
-	double A,U,V,C, read[2], x0 = Y[1][x]/Y[len-1][x];
-	getAstarCenter(read, maxpow, 5./3.);
-	A = read[0] + read[1]*x0*x0;
-	getVgCenter(read, maxpow, 5./3.);
-	V = read[0] + read[1]*x0*x0;
-	getC1Center(read, maxpow);
-	C = read[0] + read[1]*x0*x0;
-	getUCenter(read, maxpow);
-	U = read[0] + read[1]*x0*x0;
-	fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
-		x0, A, U, V, C);
-	for(int X=1; X< length()-1; X++){
-		fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
-			Y[X][x]/Y[len-1][x],
-			getAstar(X, 5./3.),
-			getU(X),
-			getVg(X, 5./3.),
-			getC(X)
-		);
-	}
-	double reads[3], t1 = 1.-Y[len-2][x]/Y[len-1][x];
-	getAstarSurface(reads, maxpow, 5./3.);
-	A = reads[0]/t1 + reads[1] + reads[2]*t1;
-	getVgSurface(reads, maxpow, 5./3.);
-	V = reads[0]/t1 + reads[1] + reads[2]*t1;
-	getC1Surface(reads, maxpow);
-	C = reads[0] + reads[1]*t1 + reads[2]*t1*t1;
-	getUSurface(reads, maxpow);
-	U = reads[0] + reads[1]*t1 + reads[2]*t1*t1;
-	fprintf(fp, "%0.16le\t%0.16le\t%0.16le\t%0.16le\t%0.16le\n",
-		1.0, A, U, V, C);
-	fclose(fp);	
-	//plot file in png in gnuplot
-	fprintf(gnuplot, "reset\n");
-	fprintf(gnuplot, "set term png size 800,800\n");
-	fprintf(gnuplot, "set samples %d\n", length());
-	fprintf(gnuplot, "set output '%s'\n", outname);
-	fprintf(gnuplot, "set title 'Pulsation Coefficients for %s'\n", title);
-	fprintf(gnuplot, "set xlabel 'r/R'\n");
-	fprintf(gnuplot, "set ylabel 'A*, U, V_g, c_1'\n");
-	fprintf(gnuplot, "set logscale y\n");
-	fprintf(gnuplot, "plot '%s' u 1:2 w l t 'A*'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:3 w l t 'U'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:4 w l t 'V_g'", txtname);
-	fprintf(gnuplot, ",    '%s' u 1:5 w l t 'c_1'", txtname);
-	fprintf(gnuplot, "\n");	
-	fprintf(gnuplot, "exit\n");
-	pclose(gnuplot);
+	printBV(pathname, 5./3.);
+	printCoefficients(pathname, 5./3.);
 }
 
 #endif

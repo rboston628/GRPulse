@@ -7,46 +7,44 @@ ODIR=obj
 .SUFFIXES:
 .SUFFIXES: .cpp .o
 
-CC=g++ -std=c++11
-CFLAGS=-I$(IDIR) -Wuninitialized -Weffc++
+CC=g++ --std=c++14
+CFLAGS=-I$(IDIR) -Wuninitialized -Weffc++ --pedantic-errors
 
 ## files needed to compile stellar models
 #  dependencies
-_STARDEPS = constants.h\
- 	 STARS/Star.h \
-		STARS/Polytrope.h \
-		STARS/ChandrasekharWD.h \
-		STARS/MESA.h\
- 	 STARS/PNStar.h \
-		STARS/PNPolytrope.h \
-		STARS/PNChandrasekharWD.h \
-	 STARS/GRStar.h \
-		STARS/GRPolytrope.h
-STARDEPS = $(patsubst %, $(IDIR)/%, $(_STARDEPS))
-#  source
-_STARSRC = STARS/Star.cpp \
-		STARS/Polytrope.cpp STARS/PNPolytrope.cpp STARS/GRPolytrope.cpp \
-		STARS/ChandrasekharWD.cpp STARS/PNChandrasekharWD.cpp \
-		STARS/MESA.cpp
-STARSRC  = $(patsubst %, $(SDIR)/%, $(_STARSRC))
+_STARTYPES = \
+	STARS/Star \
+		STARS/Polytrope \
+		STARS/ChandrasekharWD++ \
+		STARS/MESA \
+	STARS/PNPolytrope \
+		STARS/PNChandrasekharWD++ \
+	STARS/GRPolytrope
+_STARDEPS = \
+	constants.h\
+ 	STARS/PNStar.h \
+	STARS/GRStar.h 
+	
+STARDEPS = $(patsubst %, $(IDIR)/%.h, $(_STARTYPES)) $(patsubst %, $(IDIR)/%, $(_STARDEPS))
+STARSRC  = $(patsubst %, $(SDIR)/%.cpp, $(_STARTYPES))
+
 
 ## files needed to compile mode drivers
 #  dependencies
-_DRVDEPS = constants.h\
-	STARS/Star.h STARS/PNStar.h\
-	MODES/ModeDriver.h \
-		MODES/NonradialModeDriver.h \
-		MODES/CowlingModeDriver.h\
-		MODES/PNNonradialModeDriver.h\
-		MODES/GRCOwlingModeDriver.h 
-DRVDEPS = $(patsubst %, $(IDIR)/%, $(_DRVDEPS))
-#  source
-_DRVSRC  = MODES/NonradialModeDriver.cpp \
-		MODES/PNNonradialModeDriver.cpp \
-		MODES/CowlingModeDriver.cpp \
-		MODES/GRCowlingModeDriver.cpp
-DRVSRC   = $(patsubst %, $(SDIR)/%, $(_DRVSRC))
+_DRVTYPES = \
+	MODES/NonradialModeDriver \
+	MODES/CowlingModeDriver\
+	MODES/PNNonradialModeDriver\
+	MODES/GRCOwlingModeDriver 
+_DRVDEPS = \
+	constants.h \
+	STARS/Star.h \
+	STARS/PNStar.h \
+	STARS/GRStar.h \
+	MODES/ModeDriver.h
 
+DRVDEPS = $(patsubst %, $(IDIR)/%.h, $(_DRVTYPES)) $(patsubst %, $(IDIR)/%, $(_DRVDEPS))
+DRVSRC  = $(patsubst %, $(SDIR)/%.cpp, $(_DRVTYPES))
 
 ## files needed to compile the mode object
 #  dependencies
@@ -61,37 +59,22 @@ MODESRC  = $(patsubst %, $(SDIR)/%, $(_MODESRC))
 ## files needed to compile main program
 #  dependencies
 _MAINDEPS = constants.h GRPulseMain.h GRPulseIO.h\
-	STARS/Star.h \
-		STARS/Polytrope.h \
-		STARS/ChandrasekharWD.h \
-		STARS/MESA.h \
-  	STARS/PNStar.h \
-		STARS/PNPolytrope.h \
-		STARS/PNChandrasekharWD.h \
-	STARS/GRStar.h \
-		STARS/GRPolytrope.h \
-  	MODES/Mode.h\
-  	MODES/ModeDriver.h \
-		MODES/CowlingModeDriver.h \
-		MODES/NonradialModeDriver.h \
-		MODES/PNNonradialModeDriver.h \
-		MODES/GRCowlingModeDriver.h 
-MAINDEPS = $(patsubst %, $(IDIR)/%, $(_MAINDEPS))
+MAINDEPS = $(patsubst %, $(IDIR)/%, $(_MAINDEPS)) $(STARDEPS) $(MODEDEPS) $(DRVDEPS)
 #  soure
 _MAINSRC = GRPulseMain.cpp GRPulseIO.cpp GRPulseStellar.cpp GRPulseMode.cpp GRPulseUnits.cpp
 MAINSRC  = $(patsubst %, $(SDIR)/%, $(_MAINSRC))
 
 
 ## prepare object names
-STAROBJ = $(patsubst %.cpp,$(ODIR)/%.o, $(_STARSRC))
-DRVOBJ  = $(patsubst %.cpp,$(ODIR)/%.o, $(_DRVSRC))
-MODEOBJ = $(patsubst %.cpp,$(ODIR)/%.o, $(_MODESRC))
-MAINOBJ = $(patsubst %.cpp,$(ODIR)/%.o, $(_MAINSRC))
+STAROBJ = $(patsubst %, $(ODIR)/%.o, $(_STARTYPES))
+DRVOBJ  = $(patsubst %, $(ODIR)/%.o, $(_DRVTYPES))
+MODEOBJ = $(patsubst %.cpp, $(ODIR)/%.o, $(_MODESRC))
+MAINOBJ = $(patsubst %.cpp, $(ODIR)/%.o, $(_MAINSRC))
 
 
 ## Main rule for GRPulse program
-GRPulse:  $(MAINOBJ) $(MODEOBJ) $(STAROBJ) $(DRVOBJ) |library
-	$(CC) -o $@ $^ $(CFLAGS) $(LDIR)/mylib.a
+GRPulse:  $(MAINOBJ) $(MODEOBJ) $(STAROBJ) $(DRVOBJ)  # |library
+	$(CC) -o $@ $^ $(CFLAGS) $(LDIR)/mylib.a -lm
 
 ## Rules for each subsection -- only update if their dependencies change
 $(STAROBJ): $(ODIR)/%.o: $(SDIR)/%.cpp $(STARDEPS) |obj/STARS
@@ -116,13 +99,16 @@ obj/STARS:
 obj/MODES:
 	mkdir -p obj/MODES
 
+.PHONY: clean pull library
+
 library:
-	$(CC) -c -o lib/Splinor.o lib/Splinor.cpp
-	$(CC) -c -o lib/chandra.o lib/chandra.cpp
-	ar rcs lib/mylib.a lib/Splinor.o lib/chandra.o
+	rm -f lib/*.o
+	rm -f lib/*.a
+	$(MAKE) -C lib --makefile=makelib library
 
-
-.PHONY: clean
+## this command is used on my local machine to handle centralized versioning
+pull:
+	$(MAKE) -f pull
 
 clean:
 	rm -f $(ODIR)/*.o $(ODIR)/STARS/*.o $(ODIR)/MODES/*.o

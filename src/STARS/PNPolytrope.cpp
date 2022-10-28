@@ -357,7 +357,7 @@ PNPolytrope::PNPolytrope(double n, double zsurf, int Len)
 	setupSurface();
 }
 
-//initalize polytrope from index, length, and dx
+//initalize polytrope from index, sigma, length, and dx
 PNPolytrope::PNPolytrope(double n, double sigma, int Len, const double dx)
 	: n(n), sigma(sigma), zsurf(1./sqrt(1.-2.*(n+1.)*sigma) - 1.),len(Len), 
 	Gamma(1.0+1.0/n), GG(1.), cc(1.)
@@ -792,8 +792,8 @@ void PNPolytrope::getUSurface(    double *Us, int& maxPow){
 		if(maxPow>=1) Us[1] = x12*(1.-2.*sigma*φs[0])*(igs[1]-igs[0])
 							 + sigma*x12*(3.*θs[1]-2.*φs[1])*igs[0];
 		if(maxPow>=2) Us[2] = x12*(1.-2.*sigma*φs[0])*(igs[2]-igs[1])
-							 + sigma*x12*(3.*θs[1]-2.*φs[1])*(igs[1])
-							 + sigma*x12*(-2.5*x12 )*igs[0];
+							 + sigma*x12*(3.*θs[1]-2.*φs[1])*(igs[1]-igs[0])
+							 + sigma*x12*(-2.5*x12)*igs[0];
 	}
 	else if(n==1){
 		if(maxPow>=0) Us[0] = 0.0;
@@ -833,7 +833,6 @@ void PNPolytrope::getPhiSurface(  double *ps, int& maxPow){
 	//pattern would continue for higher terms...
 	if(maxPow> 2) maxPow = 2;
 }
-
 
 //method to print pertinent values of star to .txt, and plot them in gnuplot
 void PNPolytrope::writeStar(char *c){

@@ -217,107 +217,17 @@ void Mode<numvar>::converge(){
 template <size_t numvar>
 void Mode<numvar>::convergeBisect(double tol){
 	//the apparently magical numbers are arbitrary
-	double w1  = omega2, w2, W1, W2;
+	double w1  = omega2;
 	//brackets
-	double wmax, wmin, wdx;
-	double Wmax, Wmin, Wdx;
-	int stop = 0, bnd = 200;
-	int a=53, b=122, r=17737, ok = 39;//for pseudorandom positioning
-	
-	W1 = W2 = RK4center(w1, yCenter,ySurface);	
-	//while the two Ws are on same side of axis, keep reposition until zero is bound
-	//we use Newton's method to the nearest zero
-	w2=w1;
-	while(W1*W2 >= 0.0){
-		//compute numerical derivative
-		wdx = 1.01*w2;
-		Wdx = RK4center(wdx, yCenter,ySurface);\
-		wdx = w2 - W2*(wdx-w2)/(Wdx-W2);
-		//Newton's method can fail at this if it only approaches the zero from one direction
-		//In such a case, slightly broaden the bracket to get to other side of zero
-		if( wdx == w2 ) {
-			if(wdx>w1) wdx *= 1.01;
-			if(wdx<w1) wdx *= 0.99;
-		}
-		//limit amount of change allowed in single step
-		if(wdx > 1.1*w2) wdx = 1.1*w2;	//if we increased, don't increase too much
-		if(wdx < 0.9*w2) wdx = 0.9*w2;	//if we decreased, don't decrease too much
-		Wdx = W2;
-		W2 = RK4center(wdx, yCenter, ySurface);
-		w2 = wdx;
-	}
-	//sometimes the brackets will be on either end of hyperbolic divergence
-	//check that solution changes continuously between the two brackets
-	double w3 = 0.5*(w1+w2), W3 = RK4center(w3, ySurface, yCenter);
-	double scale = 1.01;
-	while( (W3*W1>=0.0 & fabs(W3)>fabs(W1)) | (W3*W2>=0.0 & fabs(W3)>fabs(W2))){
-		//this can sometimes be solved by taking broader steps in secant method
-		scale *= 1.1;
-		w2=w1;
-		W2=W1;
-		while(W1*W2 >= 0.0){
-			//compute numerical derivative
-			wdx = scale*w2;
-			Wdx = RK4center(wdx, yCenter,ySurface);
-			wdx = w2 - W2*(wdx-w2)/(Wdx-W2);
-			//Newton's method can fail at this if it only approaches the zero from one direction
-			//In such a case, slightly broaden the bracket to get to other side of zero
-			if( wdx == w2 ) {
-				if(wdx>w1) wdx *= 1.01;
-				if(wdx<w1) wdx *= 0.99;
-			}
-			Wdx = W2;
-			W2 = RK4center(wdx, yCenter, ySurface);
-			w2 = wdx;
-		}
-		w3 = 0.5*(w1+w2);
-		W3 = RK4center(w3, yCenter, ySurface);
-	}
-	
-	if(w2 > w1){
-		wmax = w2; Wmax = W2;
-		wmin = w1; Wmin = W1; 
-	}
-	else {
-		wmax = w1; Wmax = W1;
-		wmin = w2; Wmin = W2;
-	}
-	//swap if they are backwards
-	if(wmin > wmax){
-		double temp = wmax;
-		wmax = wmin; wmin = temp;
-		temp = Wmax;
-		Wmax = Wmin; Wmin = temp;
-	}
-	
-	//now bisect search inside the brackets
-	w1 = 0.5*(wmin+wmax);
-	W2 = RK4center(w1, yCenter,ySurface);
-	stop=0;
-	while( fabs(w2-w1) > tol ){
-		w2 = w1;
-		W1 = W2;
-		//test s
-		if( W1*Wmax > 0.0 ){
-			if( w1 < wmax ){
-				wmax = w1;
-				Wmax = W1;
-			}
-		}
-		else if( W1*Wmin > 0.0 ){
-			if( w1 > wmin ){
-				wmin = w1;
-				Wmin = W1;
-			}
-		}
-		w1 = 0.5*(wmin+wmax);
-		W2 = RK4center(w1, yCenter, ySurface);
-		if(W2==W1){//if the problem becomes stuck in a loop
-			ok = (a*ok+b)%r; //generates a psuedo-random integer in (0,r)
-			w1 = wmin + (double(ok)/double(r))*fabs(wmax-wmin);
-			W2 = RK4center(w1, yCenter,ySurface);
-		}
-	}
+	double wmax, wmin;
+	//we need a root of the Wronskian, returned by RK4center
+	std::function<double(double)> wronskian = [this](double w)->double{
+		return RK4center(w, this->yCenter, this->ySurface);
+	};
+	//find the brackets using a newton method
+	bisection_find_brackets_newton(wronskian, w1, wmin, wmax);
+	//now bisect on the brackets to find the correct value of omega2
+	bisection_search(wronskian, w1, wmin, wmax);
 	omega2 = w1;
 }
 
@@ -326,28 +236,12 @@ void Mode<numvar>::convergeBisect(double tol){
 //if term = 0, then no maximum number of steps (until integer overflow, anyway)
 template <size_t numvar> 
 void Mode<numvar>::convergeNewton(double tol, int term){
-	int stop=1, fix=0, kick=3;
-	double w1  = 0.0, w2 = omega2;
-	double W1 = RK4center(omega2, yCenter,ySurface), W2;
-	while( fabs(w1-w2) > tol){
-		w1=w2;		
-		w2 = 1.0001*w1;
-		W2 = RK4center(w2, yCenter,ySurface);
-		if(W2==W1){
-			printf("stux\n");
-			omega2 = w1;
-			return;
-		}
-		w2 = w1 - W1*(w2-w1)/(W2-W1);
-		W1 = RK4center(w2, yCenter,ySurface);
-		
-		if(isnan(W1)) printf("NaN in W1 at step %d\n", stop);
-		if(isnan(w2)) printf("NaN in w2 at step %d\n", stop);
-
-		if( stop++ == term) break;
-	}
-	omega2 = w2;
-	printf("W2 = %le", W1);
+	double w1 = omega2, dw = 0.001*omega2;
+	std::function<double(double)> wronskian = [this](double w)->double{
+		return this->RK4center(w, this->yCenter, this->ySurface);
+	};
+	newton_search<double>(wronskian, w1, dw, tol, (size_t)term);
+	omega2 = w1;
 }
 
 //linearly match inward and outward solutions
@@ -355,7 +249,7 @@ template <size_t numvar>
 void Mode<numvar>::linearMatch(double w2, double y0[numvar], double ys[numvar]){
 	double DY[numvar][numvar];
 	for(int i=0;i<numvar/2;i++){
-		RK4out(xfit, w2, boundaryMatrix[i]  );
+		RK4out( xfit, w2, boundaryMatrix[i]);
 		for(int j=0;j<numvar;j++) DY[i][j] = y[j][xfit];
 	}
 	for(int i=numvar/2; i<numvar; i++){
@@ -372,7 +266,15 @@ void Mode<numvar>::linearMatch(double w2, double y0[numvar], double ys[numvar]){
 	
 	double aa[numvar] = {0.0};
 	double bb[numvar] = {0.0};
-	invertMatrix(A, bb, aa);
+	// try to perform the matric inversion -- on a failure... not sure
+	if(invertMatrix(A, bb, aa)){
+		printf("w2=%le Wronskian=%le\n", w2, RK4center(w2, y0, ys));
+		for(int i=0; i<numvar; i++){
+			printf("[");
+			for(int j=0; j<numvar; j++) printf("%le ", A[i][j]);
+			printf("]\n");
+		}
+	}
 	
 	//for the basis BCs we chose, this will be the properly scaled physical solution
 	//if we change the BCs, we must change these results to match

@@ -27,93 +27,22 @@ Polytrope::Polytrope(double BigM, double BigR, double n, int L)
 	//name this polytrope for files
 	sprintf(name, "polytrope.%1.1f", n);
 	
+	Y = new double*[len];
+	for(int i=0;i<len;i++) 
+		Y[i] = new double[numvar];
+	
 	//we find an appropriate grid spacing for array holding star data
 	//we need for dx to be such that the integration ends with y[len-1]=0.0
 	//we will find the proper dx with a bisection search
 	
 	//an initial guess
-	double dx = sqrt(6.0)/(len-1), yS=1.0, ddx = dx;
-	Y = new double*[len];
-	for(int i=0;i<len;i++) 
-		Y[i] = new double[numvar];
-	double dxmax=1.0, dxmin=0, ySmax=-1.0, ySmin=1.0;
-	int stop=0;
-	double dxold = 1.0;
-		
-	yS = RK4integrate(len, dx);
-	//find brackets on dx that bound a zero in yS
-	if(yS > 0){
-		dxmin = dx; ySmin = yS;
-		while(yS > 0 && !isnan(yS)){
-			dx += ddx;
-			yS = RK4integrate(len, dx);
-			if(isnan(yS)){
-				if(n!= int(n)) yS = -1.0;
-				else {
-					dx = 1.0/len; ddx *= 0.1; yS = 1.0;
-				}
-			}
-		}
-		dxmax = dx; ySmax = yS;
-	}
-	else if (yS < 0){
-		dxmax = dx; ySmax = yS;
-		while(yS < 0){
-			dx = 0.99*dx;
-			yS = RK4integrate(len,dx);
-		}
-		dxmin = dx; ySmin = yS;
-	}
-	dx = 0.5*(dxmin+dxmax);
-	yS = RK4integrate(len, dx);
-	
-	//some possible errors that might occur
-	if(dx<0) {printf("somehow dx is negative...\n"); dx=-dx;}
-	if(ySmin*ySmax > 0.0) {printf("big problem, chief\n"); exit(EXIT_FAILURE);}
-	
-	//now use bisection to find dx so that yS=0.0
-	while( fabs(yS)>0.0 || isnan(yS) ){
-		dx = 0.5*(dxmin+dxmax);
-		yS = RK4integrate(len, dx);
-		
-		if(isnan(yS)){
-			yS = -1.0;
-		}
-		if( (yS*ySmax>0.0) ){
-			dxmax = dx;
-			ySmax = yS;
-		}
-		else if( (yS*ySmin>0.0) ){
-			dxmin = dx;
-			ySmin = yS;
-		}
-		//if the brackets are not moving, stop the search
-		if(dxold == fabs(dxmin-dxmax)) break;
-		dxold = fabs(dxmin-dxmax);
-		stop++;
-	}
+	double dx = sqrt(6.0)/(len-1), yS, dxmax=1.0, dxmin=0.0;
+	std::function<double(double)> find_surface = [this](double x)->double {return this->RK4integrate(len,x);};
+	bisection_find_brackets_newton( find_surface, dx, dxmin, dxmax);
+	yS = bisection_search(find_surface, dx, dxmin, dxmax);
 	
 	RK4integrate(len, dx, 1);
-	
-	//the following deprecated code is used if we desire finer surface resolution
-	/*if(n<5.0) {
-		for(int i=0; i<len; i++)
-			delete[] Y[i];
-		this->len = len - 3 + Nedge;
-		//now recalculate with correct grid size
-		Y = new double*[len];
-		for(int i=0;i<len;i++) 
-			Y[i] = new double[numvar];
-		//integrate to one step before edge
-		int C = RK4integrate(len-1-Nedge, dx, 1);
-		//treat last step specially to ensure boundary is found
-		findEdge(Nedge);
-	}
-	else if (n==5.0){
-		dx = 1.0/double(len);
-		RK4integrate(len, dx, 1);
-	}//*/
-	
+		
 	//now set physical properties of the polytrope
 	
 	//set initial density, pressure
@@ -165,75 +94,21 @@ Polytrope::Polytrope(double n, int L)
 	//we will find the proper dx with a bisection search
 	
 	//an initial guess
-	double dx = sqrt(6.0)/(len-1), yS=1.0, ddx = dx;
+	double dx = sqrt(6.0)/(len-1);
+	
 	Y = new double*[len];
 	for(int i=0;i<len;i++) 
 		Y[i] = new double[numvar];
-	double dxmax=1.0, dxmin=0, ySmax=-1.0, ySmin=1.0;
-	int stop=0;
-	double dxold = 1.0;
 	
-	//for n=5, there is no edge, so skip the search for dx
-	//this is really the easiest way to do this.
-	//yes, I do feel dirty for it
-	//the n=5 edge case should only come up in testing
-	if(n==5.0) goto skipfindsurface;
-	
-	yS = RK4integrate(len, dx);
 
-	//find brackets on dx that bound a zero in yS
-	if(yS > 0){
-		dxmin = dx; ySmin = yS;
-		while(yS > 0 && !isnan(yS)){
-			dx += ddx;
-			yS = RK4integrate(len, dx);
-			if(isnan(yS)){
-				if(n!= int(n)) yS = -1.0;
-				else {
-					dx = 1.0/len; ddx *= 0.1; yS = 1.0;
-				}
-			}
-		}
-		dxmax = dx; ySmax = yS;
+	//for n=5, there is no edge, so only search for dx if n!=5
+	//the n=5 case is an esge-case and should only come up in testing
+	if(n!=5.0){
+		double dxmax=1.0, dxmin=0;
+		std::function<double(double)> find_surface = [this](double x)->double{return this->RK4integrate(len,x);};
+		bisection_find_brackets_newton( find_surface, dx, dxmin,dxmax);
+		bisection_search(find_surface, dx, dxmin, dxmax);
 	}
-	else if (yS < 0){
-		dxmax = dx; ySmax = yS;
-		while(yS < 0){
-			dx = 0.99*dx;
-			yS = RK4integrate(len,dx);
-		}
-		dxmin = dx; ySmin = yS;
-	}
-	dx = 0.5*(dxmin+dxmax);
-	yS = RK4integrate(len, dx);
-	
-	//some possible errors that might occur
-	if(dx<0) {printf("somehow dx is negative...\n"); dx=-dx;}
-	if(ySmin*ySmax > 0.0) {printf("big problem, chief\n"); exit(EXIT_FAILURE);}
-	
-	//now use bisection to find dx so that yS=0.0
-	while( fabs(yS)>0.0 || isnan(yS) ){
-		dx = 0.5*(dxmin+dxmax);
-		yS = RK4integrate(len, dx);
-		
-		if(isnan(yS)){
-			yS = -1.0;
-		}
-		if( (yS*ySmax>0.0) ){
-			dxmax = dx;
-			ySmax = yS;
-		}
-		else if( (yS*ySmin>0.0) ){
-			dxmin = dx;
-			ySmin = yS;
-		}
-		//if the brackets are not moving, stop the search
-		if(dxold == fabs(dxmin-dxmax)) break;
-		dxold = fabs(dxmin-dxmax);
-		stop++;
-	}
-	//we will skip to here if n=5
-	skipfindsurface:
 	RK4integrate(len, dx, 1);
 		
 	//now set physical properties of the polytrope
@@ -392,82 +267,11 @@ int    Polytrope::RK4integrate(const int Len, double dx, int grid){
 	//set initial conditions
 	centerInit(Y[0]);
 
-	//integrastr with RK4
+	//integrate with RK4
 	for(int X = 0; X<Len-1; X++){
 		RK4step(dx, Y[X], Y[X+1]);
 	}
 	return Len;
-}
-
-//Uses bisection method to find edge
-void Polytrope::findEdge(int Nedge){
-	int R = len-1;
-	double dxmax, dxmin;
-	double fmax, fmin, f1, f2;
-	
-	double dx1 = (Y[R-Nedge-1][x]-Y[R-Nedge-2][x])/Nedge;
-	double dx2 = 1.1*dx1;
-	
-	f1 = integrateEdge(Nedge, dx1);
-	f2 = integrateEdge(Nedge, dx2);
-	
-	//find brackets
-	double incr = (fabs(f2)>fabs(f1)? -1.1*dx1 : 1.1*dx1);
-	//while the two Ws are on same side of axis, keep increasing s and trying again
-	int stop = 0, bnd = 20;
-	while(f1*f2 >= 0.0){
-		dx2 += incr;
-		f2 = integrateEdge(Nedge, dx2);
-		if( (++stop) > bnd | dx2<0.0 ) {
-			dx2 = 1.03*dx1;
-			incr = -incr; stop = 0; bnd = 2*bnd;
-		}
-	}
-	//if we were decreasing dx, then dx2 is min bracket and dx1 is max bracket
-	if(incr < 0){
-		dxmin = dx2; fmin = f2;
-		dxmax = dx1; fmax = f1;
-	}
-	//if we were increasing dx, then dx2 is max bracket and dx2 is min bracket
-	else{
-		dxmin = dx1; fmin = f1;
-		dxmax = dx2; fmax = f2;	
-	}//
-	if(dxmin > dxmax){
-		double temp = dxmax;
-		dxmax = dxmin; dxmin = temp;
-		temp = fmax;
-		fmax = fmin; fmin = temp;
-	}
-	
-	//now find solution
-	dx1 =  0.5*(dxmin + dxmax);
-	f2 = integrateEdge(Nedge, dx1);
-	stop=0;
-	while( fabs(f2-f1) >0.0 ){
-		f1 = f2;
-		if( f1*fmax > 0.0 ){
-			if( dx1 < dxmax ){
-				dxmax = dx1;
-				fmax = f1;
-			}
-		}
-		else if( f1*fmin > 0.0 ){
-			if( dx1 > dxmin ){
-				dxmin = dx1;
-				fmin = f1;
-			}
-		}
-		dx1 = 0.5*(dxmin+dxmax);
-		f2 = integrateEdge(Nedge, dx1);
-	}	
-}
-
-double Polytrope::integrateEdge(int Nedge, double dx){
-	for(int X=len-2-Nedge; X<len-1; X++){
-		RK4step(dx, Y[X],Y[X+1]);
-	}
-	return Y[len-1][y];
 }
 
 //Here we define functions to access radius, pressure, etc.
@@ -692,6 +496,22 @@ void Polytrope::getC1Surface(double *cs, int& maxPow){
 	if(maxPow>=4) cs[4]  =  0.; //does not actually appear in equations
 	//if more  terms than this requested, cap number of terms
 	if(maxPow> 4) maxPow = 4;
+}
+
+
+void Polytrope::writeStar(char *c){
+	//create names for files to be opened
+	char pathname[256];
+	if(c==NULL)	sprintf(pathname, "./out/%s", name);
+	else{
+		sprintf(pathname, "./%s/star/", c);
+	}
+	char command[300];
+	sprintf(command, "mkdir -p %s", pathname);
+	
+	printStar(pathname);
+	printBV(pathname, 5./3.);
+	printCoefficients(pathname, 5./3.);
 }
 
 
