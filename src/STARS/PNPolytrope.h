@@ -103,19 +103,19 @@ private:
 	void setupSurface();	
 public:
 	//must return stellar structure expanded in powers of x=r/R near center
-	void getAstarCenter(double *, int&, double g=0);
-	void getUCenter(double*, int&);
-	void getVgCenter(double*, int&, double g=0);
-	void getC1Center(double*, int&);
-	void getBetaCenter(double*, int&, double g=0);
-	void getPhiCenter(double*, int&);
+	void getAstarCenter(double*, int&, double g=0);
+	void getUCenter(    double*, int&);
+	void getVgCenter(   double*, int&, double g=0);
+	void getC1Center(   double*, int&);
+	void getBetaCenter( double*, int&, double g=0);
+	void getPhiCenter(  double*, int&);
 	//must return stellar structure expanded in powers of t=1-r/R near surface
-	void getAstarSurface(double *, int&, double g=0);
-	void getUSurface(double*, int&);
-	void getVgSurface(double*, int&, double g=0);
-	void getC1Surface(double*, int&);
+	void getAstarSurface(double*, int&, double g=0);
+	void getUSurface(   double*, int&);
+	void getVgSurface(  double*, int&, double g=0);
+	void getC1Surface(  double*, int&);
 	void getBetaSurface(double*, int&, double g=0);
-	void getPhiSurface(double*, int&);
+	void getPhiSurface( double*, int&);
 	void writeStar(char *c=NULL);
 	double SSR();
 private:

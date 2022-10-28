@@ -16,6 +16,7 @@
 #include <vector>
 #include "../lib/Splinor.h"
 #include "../lib/matrix.h"
+#include "../lib/rootfind.h"
 // #include <time.h> //might use later to put a time stamp
 
 //good ol' pi!
@@ -26,7 +27,6 @@ const double C_CGS = 2.99792458e10;// in CGS
 // previous value G = 6.6725985e-8 taken from: https://iopb.res.in/~somen/constants0.html
 // new value taken from: https://physics.nist.gov/cuu/Constants/index.html
 const double G_CGS = 6.67430e-8; // in CGS
-
 //Avogagro's number
 const double N_Avogadro = 6.02214076e23;
 
@@ -47,22 +47,22 @@ const double LSOLAR = 3.828e33;//in CGS
 const double REARTH = 6.378e8 ;//in CGS
 
 //Plank constants in CGs units 
-const double plank_h_CGS = 6.62607015e-27;
-const double plank_hbar_CGS = 1.054571817e-27;
+const double planck_h_CGS = 6.62607015e-27;
+const double planck_hbar_CGS = 1.054571817e-27;
 
 //properties of an electron
 const struct {
 	const double mass_CGS;
 	const double charge_CGS;
 	const double compton_wavelength_CGS;
-} electron = {9.1095e-28, 4.80320425e-10, plank_hbar_CGS/(9.1095e-28*C_CGS)};
+} electron = {9.1095e-28, 4.80320425e-10, planck_hbar_CGS/(9.1095e-28*C_CGS)};
 
 //useful properties of a proton
 const struct {
 	const double mass_CGS;
 	const double charge_CGS;
 	const double compton_wavelength_CGS;
-} proton = {1.6726e-24, 4.80320425e-10, plank_hbar_CGS/(1.6726e-24*C_CGS)};
+} proton = {1.6726e-24, 4.80320425e-10, planck_hbar_CGS/(1.6726e-24*C_CGS)};
 
 
 //in astronomical units, things are in terms of
@@ -71,6 +71,8 @@ const struct {
 //  base speed = km/s
 const double C_astro = 2.99792458e5; // km/s
 const double G_astro = 4.302e-3*30856775812800.0;// km (km/s)^2 /MSOLAR 
+//const double G_astro = 4.302e-3;// pc (km/s)^2 /MSOLAR 
+//const double G_astro = 1.90809e5;// RSOLAR (km/s)^2/MSOLAR
 
 #endif
 

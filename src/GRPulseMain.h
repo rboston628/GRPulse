@@ -4,37 +4,20 @@
 //
 //**************************************************************************************
 
-//basic template classes
-#include "constants.h"
-#include "STARS/Star.h"
-#include "MODES/Mode.h"
-//specific Newtonian stars
-#include "STARS/Polytrope.h"
-#include "STARS/ChandrasekharWD.h"
-#include "STARS/MESA.h"
-//for 1PN models of stars
-#include "STARS/PNStar.h"
-#include "STARS/PNPolytrope.h"
-#include "STARS/PNChandrasekharWD.h"
-//for GR models of stars
-#include "STARS/GRStar.h"
-#include "STARS/GRPolytrope.h"
-//mode drivers
-#include "MODES/ModeDriver.h"
-#include "MODES/CowlingModeDriver.h"
-#include "MODES/NonradialModeDriver.h"
-//for 1PN mode calculations
-#include "MODES/PNNonradialModeDriver.h"
-//for GR mode calculations
-#include "MODES/GRCowlingModeDriver.h"
+#ifndef GRPULSEMAINHEADER
+#define GRPULSEMAINHEADER
 
-#ifndef HEADER
-#define HEADER
+#include "STARS/Star.h"
+#include "MODES/ModeDriver.h"
 
 //constants labeling the physical regime being used
-namespace regime { enum Regime {PN0, PN1, GR};}
+namespace regime { enum Regime {PN0=0, PN1, GR, end};
+	const char names[][20] = {"newtonian", "1pn", "gr"};
+}
 //constants labeling the stellar models used 
-namespace model {enum StellarModel {polytrope, CHWD, MESA};}
+namespace model {enum StellarModel {polytrope=0, CHWD, MESA, end};
+	const char names[][20] = {"polytrope", "CHWD", "MESA"};
+}
 //constants describing units used for calculation
 namespace units {
 	struct UnitSet {
@@ -48,6 +31,8 @@ namespace units {
 	//distinguish stellar properties given as fitting parameters
 	enum ParamType {pmass=0b00001, pradius=0b00010, pzsurf=0b00100, plogg=0b01000, pteff=0b10000};
 }
+
+
 //distinguish several types of mode calculation
 namespace modetype {enum ModeType {radial, nonradial, cowling, quasinormal};}
 namespace error {enum ErrorType {isRMSR=0, isC0, isIsopycnic, isJCD, comp1PN, numerror};}
@@ -131,5 +116,11 @@ int create_modes(CalculationOutputData&);
 //format units in the chosen unit system
 int format_units(CalculationOutputData&);
 
+
+template<regime::Regime, model::StellarModel>
+int create_stellar(CalculationOutputData&);
+
+template<regime::Regime, model::StellarModel>
+int read_stellar_input(FILE* input_file, CalculationInputData&);
 
 #endif

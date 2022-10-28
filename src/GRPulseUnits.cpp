@@ -77,7 +77,7 @@ int format_units(CalculationOutputData& data){
 	double mass_CGS = data.mass*data.unitset.base_mass;
 	double radius_CGS = data.radius*data.unitset.base_length;
 	data.freq0 = sqrt(G_CGS*mass_CGS*pow(radius_CGS,-3));
-	printf("\tfrequency scale = %lf\n", data.freq0);
+	printf("\tfrequency scale = %le\n", data.freq0);
 	
 	return 0;
 }

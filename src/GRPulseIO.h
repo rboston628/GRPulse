@@ -7,6 +7,7 @@
 #ifndef GRPULSEIOH
 #define GRPULSEIOH
 
+#include "distribution.h"
 #include "GRPulseMain.h"
 
 //will read user input from the specified file and organize the input data

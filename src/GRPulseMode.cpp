@@ -5,6 +5,9 @@
 //**************************************************************************************
 
 
+#include <set>
+#include <unordered_map>
+
 #include "GRPulseMain.h"
 #include "GRPulseIO.h"
 
@@ -66,11 +69,12 @@ const double JCD4_0[3][35] = {
 //this function will find eigenmode and frequency for the desired k,l in the output data
 // requires a mode driver type (the <class>)
 //  defined below
-template <class MODE> int mode_finder(CalculationOutputData&);
+template <class MODEDRIVER> int mode_finder(CalculationOutputData&);
 
 //this will create the correct mode driver and pass the correct driver type to the mode_finder
 int create_modes(CalculationOutputData &data_out){	
 	switch(data_out.regime){
+		default:
 		case regime::PN0:
 			switch(data_out.modetype){
 				case modetype::cowling:
@@ -123,49 +127,37 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 	
 	//information on the nodes that need to be found
 	int num = data.mode_num;
-	int l_list[num];
-	//for psuedorandom points inside bracket intervals
-	int a=53, b=122, r=17737, ok = 39; //these are arbitrary but not magical -- cycle ~ r-1
-	//good ol' 2*pi
+	// good ol' two pi
 	double twopi = 6.283185307179586;
-	double index=data.input_params[0];
 	
 	//produce a list of the different L asked for, each represented once
-	int nextl=0;
-	l_list[0] = data.l[0];
-	for(int j=1; j<num; j++){
-		//if the last mode had the same L, keep going
-		if(data.l[j] == l_list[nextl]) continue;
-		//otherwise look through rest of list to see if same L occured earlier
-		else{
-			bool already = false;
-			for(int i=0; (i<=nextl) & !already; i++){
-				if(data.l[j] == l_list[i]) already = true;
-			}
-			//if it occured earlier keep going, otherwise save it
-			if(already) continue;
-			else {
-				nextl++;
-				l_list[nextl] = data.l[j];
-			}
-		}
-	}
-	//now for each L, produce a sublist of desired modes
-	int nextmode = 0, klo=100000, khi=-100000;
-	for(int j=0; j<=nextl; j++){
-		int nextk=0, kl[num]; //kl is the sublist of desired modes
-		for(int i=0; i<num; i++){	//save in list kl all K-values with this L
-			if(data.l[i] == l_list[j]){
-				kl[nextk] = data.k[i];
-				nextk++;			//the number of k to calculate
-			}
-		}
-		//also save values for the min,max values of K in list
-		for(int i=0; i<nextk; i++){
-			if(kl[i]>khi) khi = kl[i];
-			if(kl[i]<klo) klo = kl[i];
-		}
+	// this is easily handled using an ordered list
+	std::set<int> l_list;
+	for(int j=0; j<num; j++)
+		l_list.insert(data.l[j]);
 
+	//now for each L, get a list of all K
+	int nextmode = 0;
+	for(auto lt=l_list.begin(); lt!=l_list.end(); lt++){
+		std::set<int> kl;
+		for(int i=0; i<num; i++)
+			if(data.l[i] == *lt)
+				kl.insert(data.k[i]);
+		// there is no f-mode for dipole oscillations, so remove it if it was listed
+		if(*lt==1) kl.erase(0);
+		//even if not asked for, make sure the fundamental modes are present for error calculations
+		bool skip0or1 = false;
+		if(*lt==1 && !kl.count(1)) {
+			skip0or1 = true;
+		}
+		else if(*lt!=1 && !kl.count(0)) skip0or1 = true;
+		if(*lt==1) kl.insert(1);	// dipole modes have no f-mode, so use k=1
+		else       kl.insert(0);	// all other modes should ocmpare against f-mode, k=0
+		//also save values for the min,max values of K in list
+		int klo=*kl.begin(), khi=*kl.rbegin();
+	
+
+		
 		//****************************************************************************
 		// Here the real work begins
 		// This will run through each k sublist, attempting new modes
@@ -175,127 +167,120 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 		//     accident to reduce the amount of recalculation
 		//   Search uses a bracketed bisection search on omega2.
 		//****************************************************************************
-		printf("L=%d,K\n", l_list[j]); fflush(stdout);
-		//now we need to find the (L,K) modes given by (l_list[j], kl[i])
-		int ktry[nextk];	 //the list of our calculated K
-		double w2try[nextk]; //the corresponding frequencies
-		MODE *modetry[nextk];
-		for(int i=0; i<nextk; i++) ktry[i] = 0;//zero all elements for easy identification
-		for(int i=0; i<nextk; i++){
+		printf("L=%d,K\n", *lt);
+		//now we need to find the (L,K) modes given by (l_list, kl)
+		std::set<int> kfilled;
+		std::unordered_map<int,double> w2filled(kl.size());
+		std::unordered_map<int, MODE*> modefilled(kl.size());
+		int ktry;
+		double w2try;
+		MODE* modetry;
+		for(auto kt=kl.begin(); kt!=kl.end(); kt++){		
 			//STEP 1:  check if we have already been filled from earlier
-			if(ktry[i] != 0 && w2try[i] > 0.0) {
+			if(kfilled.count(*kt)){
 				//if we have then leave
-				printf("\tK=%d\tk=%d\talready found!\n", kl[i], ktry[i]);
+				printf("\tK=%d\tk=%d\talready found!\n", *kt, *kt);
 				continue;
 			}
+			
 			//STEP 2:  if not filled from earlier, try creating a mode
 			//make a mode and find its mode-order k
-			printf("\tK=%d\t", kl[i]); fflush(stdout);
-			modetry[i] = new MODE(kl[i], l_list[j], 0, data.driver);
-			ktry[i]  = modetry[i]->modeOrder();
-			w2try[i] = modetry[i]->getOmega2();
+			printf("\tK=%d\t", *kt); fflush(stdout);
+			modetry = new MODE(*kt, *lt, 0, data.driver);
+			ktry  = modetry->modeOrder();
+			w2try = modetry->getOmega2();
+			// if this mode is in the list, add it
+			if(!kfilled.count(ktry)){
+				kfilled.insert(ktry);
+				w2filled[ktry] = w2try;
+				modefilled[ktry] = modetry;
+				modetry = NULL;
+			}
 			//is this the one we want?
-			if(ktry[i] == kl[i]){
-				printf("\t%lf\n", w2try[i]);
+			if(ktry == *kt){
+				printf("\t%lf\n", w2try);
 				continue;
 			}
+			
 			//STEP 3:  if our trial mode is not the one we want, keep looking
 			else {
 				//STEP 3a:  check if the mode we found appears later in the list
-				printf("%d\tlooking in list. ", ktry[i]); fflush(stdout);
-				bool inlist = false;
-				for(int ii=i+1; (ii<nextk) & !inlist; ii++){
-					//if it is in the list, save it
-					if(ktry[i] == kl[ii]) { 
-						printf("found in list. "); fflush(stdout);
-						inlist = true;
-						modetry[ii] = modetry[i];
-						modetry[i] = NULL; //necessary for proper memory management
-						ktry[ii] = ktry[i];
-						w2try[ii] = w2try[i];
-					}
+				printf("%d\tlooking in list. ", ktry);
+				if(kl.count(ktry)){
+					printf("found in list. ");
 				}
+
 				//STEP 3b: create brackets to be used in our bisection search
 				//  we may be able to use a previously-found omega2 as one bracket
-				printf("finding brackets.\n"); fflush(stdout);
-				double w2min=0.0, w2max=0.0, dw2=0.0, w2in=0.0, w2out=0.0;
-				int kk = ktry[i], kmax=khi+1, kmin=klo-1;
-				//scan list of modes to find brackets
-				for(int j=0; j<nextk; j++){
-					//if the list of previously found modes (ktry) contains a lower mode
-					//then use that mode as a minimum bracket
-					if(ktry[j]!=0 & ktry[j] < kl[i] & ktry[j]>kmin){
-						kmin  = ktry[j];
-						w2min = w2try[j];
-					}
-					//if the lsit of previous found modes contains a higher mode
-					//then use that mode as a maximum bracket
-					if(ktry[j]!=0 & ktry[j] > kl[i] & ktry[j]<kmax){
-						kmax  = ktry[j];
-						w2max = w2try[j];
-					}
+				printf("finding brackets.\n");
+				double w2min=0.0, w2max=0.0, dw2=0.0, w2in=0.0;
+				int kmax=khi+1, kmin=klo-1;
+				
+				//if the list of previously found modes (ktry) contains a lower mode
+				//then use that mode as a minimum bracket
+				auto kmint = kfilled.lower_bound(*kt);
+				if(kmint!=kfilled.end() && (kmint)!=kfilled.begin()){
+					kmin = *prev(kmint);
+					w2min = w2filled[kmin];
 				}
+				auto kmaxt = kfilled.upper_bound(*kt);
+				if(kmaxt!=kfilled.end()){
+					kmax = *kmaxt;
+					w2max = w2filled[kmax];
+				}
+				
 				//bracket search when discovered mode is HIGHER than desired mode
-				if(kk > kl[i]){		
+				if(ktry > *kt){		
 					//if the max bracket was not found in list
 					//then use the current mode as a max bracket (since it is high)
-					if(kmax==khi+1){
-						kmax  = kk;
-						w2max = w2try[i];
+					if(kmaxt==kfilled.end()){
+						kmax = ktry;
+						w2max = w2try;
 					}
-					//if the moin bracket was not found in list
+					//if the min bracket was not found in list
 					//then use an absolute minimum as a min bracket
 					// (note: this puts limits on allowed gmodes at -999999999)
-					if(kmin==klo-1){
+					if(kmint==kfilled.end()){
 						w2min = 0.0;
 						kmin = -1000000000;
 					}	
 				}
 				//bracket search when discovered mode is LOWER than desired mode
-				else if(kk < kl[i]){
-					//printf("low bracket: k=%d, w2=%le\n", ktry[i], w2try[i]);
+				else if(ktry < *kt){
 					//if the min bracket was not found in list
 					//then use the current mode as a min bracket
-					if(kmin==klo-1){
-						kmin  = kk;
-						w2min = w2try[i];
+					if(kmint==kfilled.end()){
+						kmin  = ktry;
+						w2min = w2try;
 					}
 					dw2 = w2min;
-					//if the max bracket was not found in list, search for it
-					if(kmax==khi+1){
+					//if the max bracket was not found in list, quest for it
+					if(kmaxt==kfilled.end()){
 						//start at current mode and increase
-						kmax  = (kk>kmin? kk : kmin);
-						w2max = (kk>kmin? w2try[i]+dw2 : w2min+dw2);
+						kmax  = (ktry>kmin? ktry : kmin);
+						w2max = (ktry>kmin? w2try+dw2 : w2min+dw2);
 					}
 					//increase and search until we find a max bracket
 					double incr = 2.0;
-					while(kmax < kl[i]){
-						delete modetry[i];
-						kmin = kmax;
-						w2min = w2max;
+					while(kmax < *kt){
+						delete modetry;
 						w2max = incr*w2max;
-						modetry[i] = new MODE(w2max, l_list[j],0,data.driver);
-						kmax = modetry[i]->modeOrder();
+						modetry = new MODE(w2max, *lt, 0,data.driver);
+						kmax = modetry->modeOrder();
 						printf("\t\t(%d,%d) in (%f,%f)\n",kmin, kmax, w2min, w2max);
-						if(isnan(w2min) | isnan(w2max)) return 1;
-						//if we found it, quit
-						inlist = false;
-						if(kmax == kl[i]){
-							kk = kmax;
-							w2try[i] = modetry[i]->getOmega2();
-							break;
-						}
+						if( isnan(w2max) ) return 1;
 						//check if our trial mode is anywhere else in the list
-						else for(int ii=i+1;(ii<nextk) & !inlist; ii++){
-							if((kmax==kl[ii]) & (ktry[ii]==0)) {
-								printf("\t\t\t%d in list\n", kmax);
-								inlist = true;
-								modetry[ii] = modetry[i];
-								modetry[i] = NULL;
-								ktry[ii] = kmax;
-								w2try[ii] = modetry[ii]->getOmega2();
-							}
+						if(!kfilled.count(kmax)){
+							printf("\t\t\t%d in list\n", kmax);
+							kfilled.insert(kmax);
+							w2filled[kmax] = modetry->getOmega2();
+							modefilled[kmax] = modetry;
+							modetry = NULL;
 						}
+						//if we found it, quit
+						if(kmax == *kt){
+							break;
+						}						
 						if(w2max > 1e6) {
 							printf("TOO LARGE\n");
 							incr = 0.5;
@@ -322,52 +307,47 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 				printf("\t\tbracketed (%d,%d) in (%f,%f)\n", kmin, kmax, w2min, w2max);
 				double prevmin=w2min, prevmax=w2max; //value of previous frequency
 				int stop=0; //integer to limit number of iterations
-				while(kk != kl[i]){
+				while(ktry != *kt){
 					//STEP 3c (i): bisect the brackets 
 					w2in = 0.5*(w2min+w2max); //bisect the brackets
 					//STEP 3c (ii): create a trial mode
-					delete modetry[i];
-					modetry[i] = new MODE(w2in, l_list[j],0,data.driver);
-					kk = modetry[i]->modeOrder();
-					w2out = modetry[i]->getOmega2();
+					delete modetry;
+					modetry = new MODE(w2in, *lt,0,data.driver);
+					ktry = modetry->modeOrder();
+					w2try = modetry->getOmega2();
 					printf("%d\t\t(%d,%d) in (%f,%f)\t %d\t %d %lf-->%lf\n",
-							l_list[j],kmin, kmax, w2min, w2max, kl[i], kk, w2in, w2out);
-					//STEP 3c (iii): compare the trial mode to desired mode
+							*lt,kmin, kmax, w2min, w2max, *kt, ktry, w2in, w2try);
+					//STEP 3c (iii): check if the trial mode is anywhere in the list
+					if(!kfilled.count(ktry)){
+						printf("\t\t\t%d in list\n", ktry);
+						kfilled.insert(ktry);
+						w2filled[ktry] = w2try;
+						modefilled[ktry] = modetry;
+						modetry = NULL;
+						stop = 0;
+					}
+					//STEP 3c (iv): compare the trial mode to desired mode
 					//if we found it, move on to next
-					if(kk == kl[i]) {
+					if(ktry == *kt) {
 						break;
 					}
 					//if we didn't find it, see if either bracket can be moved
-					if(     kk > kl[i] & kk <= kmax & w2max>w2out & w2out>0.0){
-						kmax = kk;
+					if(     ktry > *kt & ktry <= kmax & w2max>w2try & w2try>0.0){
+						kmax = ktry;
 						w2max = w2in;
 					}
-					else if(kk < kl[i] & kk >= kmin & w2min<w2out & w2out>0.0){
-						kmin = kk;
+					else if(ktry < *kt & ktry >= kmin & w2min<w2try & w2try>0.0){
+						kmin = ktry;
 						w2min = w2in;
 					}
 					
-					//STEP 3c (iv): check if the trial mode is anywhere in the list
-					inlist = false;
-					for(int ii=i+1;(ii<nextk)&!inlist; ii++){
-						if((kk==kl[ii]) & (ktry[ii]==0) & (kl[ii]!=kl[i]) & (w2out>0.0) & (kl[ii]!=0)) {
-							printf("\t\t\t%d in list\n", kk);
-							inlist = true;
-							modetry[ii] = modetry[i];
-							modetry[i ] = NULL;
-							ktry[ii] = kk;
-							w2try[ii] = modetry[ii]->getOmega2();
-							stop=0;
-						}
-					}	
-					
 					//if the sought mode is bracketed between two known frequencies
 					// then we can use special Mode constructor
-					if((kmin == kl[i]-1) & (kmax == kl[i]+1)){
-						delete modetry[i];
-						modetry[i] = new MODE(w2min, w2max, l_list[j],0,data.driver);
-						kk = modetry[i]->modeOrder();
-						w2out = modetry[i]->getOmega2();
+					if((kmin == (*kt)-1) & (kmax == (*kt)+1)){
+						delete modetry;
+						modetry = new MODE(w2min, w2max, *lt,0,data.driver);
+						ktry = modetry->modeOrder();
+						w2try = modetry->getOmega2();
 					}
 					
 					//STEP 3c (v):  check if the brackets have moved since last iteration
@@ -376,31 +356,30 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 					//this prevents us from getting stuck
 					double w2maxT = w2max, w2minT = w2min;
 					int enough=0;
-					while(kk!=kl[i] && (w2min==prevmin)&&(w2max==prevmax)){
+					while(ktry!=*kt && (w2min==prevmin)&&(w2max==prevmax)){
 						//pick a pseudo-random place in brackets
-						ok = (a*ok+b)%r; //generates a psuedo-random integer in (0,r)
-						w2in = w2minT + (double(ok)/double(r))*(w2maxT-w2minT);
-						delete modetry[i];
-						modetry[i] = new MODE(w2in, l_list[j],0,data.driver);
-						kk = modetry[i]->modeOrder();
-						w2out = modetry[i]->getOmega2();
+						w2in = w2minT + pseudo_unif()*(w2maxT-w2minT);
+						delete modetry;
+						modetry = new MODE(w2in, *lt,0,data.driver);
+						ktry = modetry->modeOrder();
+						w2try = modetry->getOmega2();
 						printf("\tR\t(%d,%d) in (%f,%f)\t %d\t %d %lf-->%lf\n",
-								kmin, kmax, w2minT, w2maxT,kl[i], kk, w2in, w2out);
+								kmin, kmax, w2minT, w2maxT,*kt, ktry, w2in, w2try);
 						//check if we found mode, or if we can move brackets
-						if(kk==kl[i]) break;
-						if(     kk > kl[i] & kk <= kmax & w2out>0.0 & w2out>w2min){
-							kmax = kk;
-							w2maxT = w2out;
+						if(ktry==*kt) break;
+						if(     ktry > *kt && ktry <= kmax && w2try>0.0 & w2try>w2min){
+							kmax = ktry;
+							w2maxT = w2try;
 						}
-						else if(kk < kl[i] & kk >= kmin & w2out>0.0 & w2out<w2max){
-							kmin = kk;
-							w2minT = w2out;
+						else if(ktry < *kt && ktry >= kmin && w2try>0.0 & w2try<w2max){
+							kmin = ktry;
+							w2minT = w2try;
 						}
 						//accounts for fact multiple w2in lead to same k
-						if(w2in < w2maxT & kk == kmax & w2in>0.0){
+						if(w2in < w2maxT && ktry == kmax && w2in>0.0){
 							w2maxT = w2in;
 						}
-						else if(w2in > w2minT & kk == kmin & w2in>0.0){
+						else if(w2in > w2minT && ktry == kmin && w2in>0.0){
 							w2minT = w2in;
 						}
 						//sometimes zeros are inaccessible
@@ -421,97 +400,104 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 					prevmin = w2min, prevmax=w2max;
 										
 					//if we are just unable to find the mode, say so
-					if(kk!=kl[i] & fabs(w2max-w2min) < 1e-2*w2min){
-						modetry[i] = NULL;
-						w2try[i] = 0.0;
-						ktry[i] = 0;
+					if(ktry!=*kt && fabs(w2max-w2min) < 1e-2*w2min){
+						modetry = NULL;
+						w2try = 0.0;
+						ktry = 0;
 						printf("too close\t%le\n", fabs((w2max-w2min)/w2max) );
 						break;
 					}
 					
 					if(stop++ > 10) {
+						w2try = 0.0;
 						break;
 					}
 				}
 				//if we were unable to find the mode, the w2try[i] is set to 0
 				//  do not save the values in that case
-				if(w2try[i]==0.0) continue;
-				//now save the mode numbers, frequency
-				ktry[i] = kk;
-				w2try[i] = modetry[i]->getOmega2();
+				if(w2try==0.0) continue;
 			}
-			printf("\t\tk=%d\n", ktry[i]);		
+			printf("\t\tk=%d\n", ktry);	
 		}
 		
 		//STEP 4:  return through list to pick up any missed modes
 		//  this calculation follows same steps as STEP 3 but because more
 		//   modes have been filled, we are more likely to have good brackets
-		printf("%d\tpicking up stragglers...\n", l_list[j]);
-		for(int i=0; i<nextk; i++){
+		printf("%d\tpicking up stragglers...\n", *lt);
+		for(auto kt= kl.begin(); kt!=kl.end(); kt++){
 			//STEP 4a:  check if we have already been filled from earlier
-			if(ktry[i] == kl[i] && w2try[i] > 0.0) {
+			if(kfilled.count(*kt)) {
 				continue;
 			}
 			//STEP 4b: if we have not, fill
 			else {
 				//STEP 4b (i): find brackets to use in bisection by scanning list of modes
 				//  this pass through, we are more likely to have bracketing modes
-				printf("\t\t%d\t", kl[i]); fflush(stdout);
-				double w2min=0.0, w2max=0.0, dw2=0.0, w2in=0.0, w2out=0.0;
-				int kk = ktry[i], kmax=khi+1, kmin=klo-1;
-				for(int j=0; j<nextk; j++){
-					//if the list of previously found modes (ktry) contains a lower mode
-					//then use that mode as a minimum bracket
-					if(ktry[j]!=0 & ktry[j] < kl[i] & ktry[j]>kmin){
-						kmin  = ktry[j];
-						w2min = w2try[j];
-					}
-					//if the list of previous found modes contains a higher mode
-					//then use that mode as a maximum bracket
-					if(ktry[j]!=0 & ktry[j] > kl[i] & ktry[j]<kmax){
-						kmax  = ktry[j];
-						w2max = w2try[j];
-					}
+				printf("\t\t%d\t", *kt); fflush(stdout);
+				double w2min=0.0, w2max=0.0, dw2=0.0, w2in=0.0;
+				int kmax=khi+1, kmin=klo-1;
+				
+				//if the list of previously found modes (ktry) contains a lower mode
+				//then use that mode as a minimum bracket
+				auto kmint = kfilled.lower_bound(*kt);
+				if(kmint != kfilled.end() && kmint != kfilled.begin()){
+					kmin = *prev(kmint);
+					w2min = w2filled[kmin];
 				}
+				//if the list of previous found modes contains a higher mode
+				//then use that mode as a maximum bracket
+				auto kmaxt = kfilled.upper_bound(*kt);
+				if(kmaxt != kfilled.end()){
+					kmax = *kmaxt;
+					w2max = w2filled[kmax];
+				}
+			
 				//if we don't have a lower bound from the list, use absolute minimum
-				if(kmin==klo-1){ 
+				if(kmin < klo){ 
 						w2min = 0.0;
 						kmin = -1000000000;
 				}
 				//if we don't have a higher bound from calculated list, just leave
-				if(kmax==khi+1) { printf("no brackets\n"); continue;}
-				printf("(%d,%d)\t", kmin,kmax);
+				if(kmax > khi) { printf("no brackets\n"); continue;}
+				printf("(%d,%d)\t", kmin,kmax);fflush(stdout);
 				
 				//STEP 4b (ii): now bisect the brackets until correct mode is found
 				double prevmin=w2min, prevmax=w2max; //value of previous frequency
 				int stop=0; //integer to limit number of iterations
-				while(kk != kl[i]){
+				while(ktry != *kt){
 					w2in = 0.5*(w2min+w2max); //bisect the brackets
 					//create a trial mode
-					delete modetry[i];
-					modetry[i] = new MODE(w2in, l_list[j],0,data.driver);
-					kk = modetry[i]->modeOrder();
-					w2out = modetry[i]->getOmega2();
+					delete modetry;
+					modetry = new MODE(w2in, *lt,0,data.driver);
+					ktry = modetry->modeOrder();
+					w2try = modetry->getOmega2();
+					// if in list
+					if(kl.count(ktry) && !kfilled.count(ktry)){
+						kfilled.insert(ktry);
+						w2filled[ktry] = w2try;
+						modefilled[ktry] = modetry;
+						modetry = NULL;
+					}
 					//if we found it, then great.  move on to next
-					if(kk == kl[i]) {
+					if(ktry == *kt) {
 						break;
 					}
 					//if we didn't find it, see if either bracket can be moved
-					if(     kk > kl[i] & kk <= kmax & w2max >w2out & w2out>0.0){
-						kmax = kk;
-						w2max = w2out;
+					if(     ktry > *kt && ktry <= kmax && w2max>w2try & w2try>0.0){
+						kmax = ktry;
+						w2max = w2try;
 					}
-					else if(kk < kl[i] & kk >= kmin & w2min<w2out & w2out>0.0){
-						kmin = kk;
-						w2min = w2out;
+					else if(ktry < *kt && ktry >= kmin && w2min<w2try & w2try>0.0){
+						kmin = ktry;
+						w2min = w2try;
 					}
 					//if the sought mode is bracketed between two known frequencies
 					// then we can use special Mode constructor
-					if((kmin == kl[i]-1) & (kmax == kl[i]+1)){
-						delete modetry[i];
-						modetry[i] = new MODE(w2min, w2max, l_list[j],0,data.driver);
-						kk = modetry[i]->modeOrder();
-						w2out = modetry[i]->getOmega2();
+					if((kmin == (*kt)-1) && (kmax == (*kt)+1)){
+						delete modetry;
+						modetry = new MODE(w2min, w2max, *lt,0,data.driver);
+						ktry = modetry->modeOrder();
+						w2try = modetry->getOmega2();
 					}
 					
 					//check if the brackets have moved since last time
@@ -519,29 +505,28 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 					//repeat until one of the brackets can move
 					double w2maxT = w2max, w2minT = w2min;
 					int enough=0;
-					while(kk!=kl[i] && (w2min==prevmin)&&(w2max==prevmax)){
+					while(ktry != *kt && (w2min==prevmin)&&(w2max==prevmax)){
 						//if scanning didn't work, pick a pseudo-random place in brackets
-						ok = (a*ok+b)%r; //generates a psuedo-random integer in (0,r)
-						w2in = w2minT + (double(ok)/double(r))*(w2maxT-w2minT);
-						delete modetry[i];
-						modetry[i] = new MODE(w2in, l_list[j],0,data.driver);
-						kk = modetry[i]->modeOrder();
-						w2out = modetry[i]->getOmega2();
+						w2in = w2minT + pseudo_unif()*(w2maxT-w2minT);
+						delete modetry;
+						modetry = new MODE(w2in, *lt,0,data.driver);
+						ktry = modetry->modeOrder();
+						w2try = modetry->getOmega2();
 						//check if we found mode, or if we can move brackets
-						if(kk==kl[i]) break;
-						if(kk > kl[i] & kk <= kmax & w2out>0.0){
-							kmax = kk;
-							w2maxT = w2out;
+						if(ktry == *kt) break;
+						if(ktry > *kt && ktry <= kmax && w2try>0.0){
+							kmax = ktry;
+							w2maxT = w2try;
 						}
-						else if(kk < kl[i] & kk >= kmin & w2out>0.0){
-							kmin = kk;
-							w2minT = w2out;
+						else if(ktry < *kt && ktry >= kmin & w2try>0.0){
+							kmin = ktry;
+							w2minT = w2try;
 						}
 						//accounts for fact multiple w2in lead to same k
-						if(w2in < w2maxT & kk == kmax & w2in>0.0){
+						if(w2in < w2maxT && ktry == kmax & w2in>0.0){
 							w2maxT = w2in;
 						}
-						else if(w2in > w2minT & kk == kmin & w2in>0.0){
+						else if(w2in > w2minT && ktry == kmin & w2in>0.0){
 							w2minT = w2in;
 						}
 						//sometimes zeros are inaccessible
@@ -557,18 +542,24 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 							w2max=w2maxT;
 							break;
 						}
-					}		
-						
+					}						
+					
 					//update past values
 					prevmin = w2min, prevmax=w2max;
 					if(stop++ > 5) {
 						break;
 					}
-				}
+				}	
 				//now save the mode numbers, frequency
-				ktry[i] = kk;
-				w2try[i] = modetry[i]->getOmega2();
-				if(kk==kl[i]) printf("found\n");
+				if(!kfilled.count(ktry)){
+					kfilled.insert(ktry);
+					w2filled[ktry] = w2try;
+					modefilled[ktry] = modetry;
+					printf("\t%d %le %le\t", ktry, w2try, modetry->getOmega2());
+					modetry = NULL;
+				}
+				//if we found it, say so
+				if(ktry == *kt) printf("found\n");
 				else printf("not found\n");
 			}
 		}
@@ -576,33 +567,33 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 		
 		//STEP 5: organize the data lists
 		int enext = data.mode_done;
-		for(int i=0; i<nextk; i++){
-			//STEP 5a: if a mode was not found, say so and save nothing to it
-			if(ktry[i]!=kl[i] | w2try[i]==0.0){
-				printf("unable to find mode %d,%d\n", l_list[j], kl[i]);
-				data.l[nextmode] = l_list[j];
-				data.k[nextmode] = kl[i];
-				data.w[nextmode] = 0.0;
-				data.mode[nextmode] = NULL;
-				data.f[nextmode] = 0.0;
-				data.period[nextmode] = 0.0;
-				data.mode_SSR[nextmode] = 0.0;
-				nextmode++;
-				data.mode_done++;
-				continue;
+		for(auto kt=kl.begin(); kt!=kl.end(); kt++){
+			if(skip0or1 & ( (*lt==1 && *kt==1) || (*kt==0) )) continue;
+			ktry = *kt;
+			//STEP 5a: if a mode was found, save its data
+			if(kfilled.count(ktry)){
+				w2try = w2filled[ktry];
+				data.l[nextmode] 		= *lt;
+				data.k[nextmode] 		= ktry;
+				data.w[nextmode] 		= ( w2try>0 ? sqrt(w2try) : -sqrt(-w2try) );
+				data.mode[nextmode] 	= modefilled[ktry];
+				//freq0 converts to rad/s, divide by 2pi to get frequency in Hertz
+				data.f[nextmode] 		= data.freq0*data.w[nextmode]/(twopi);
+				//period in seconds is 1/f
+				data.period[nextmode] 	= 1./data.f[nextmode];
+				data.mode_SSR[nextmode]	= modefilled[ktry]->SSR();	
 			}
-			//STEP 5b: otherwise save all data
-			data.l[nextmode] = l_list[j];
-			data.k[nextmode] = kl[i];
-			data.w[nextmode] = sqrt(w2try[i]);
-			if(sqrt(w2try[i])<0.0) data.w[nextmode] = -sqrt(-w2try[i]);
-			data.mode[nextmode] = modetry[i];
-			//freq0 converts to rad/s, divide by 2pi to get frequency in Hertz
-			data.f[nextmode] = data.freq0*data.w[nextmode]/(twopi);
-			//period in seconds is 1/f
-			data.period[nextmode] = 1./data.f[nextmode];
-			data.mode_SSR[nextmode] = modetry[i]->SSR();			
-			nextmode++;
+			//STEP 5b: otherwise, say so and save nothing to it
+			else {
+				data.l[nextmode] 		= *lt;
+				data.k[nextmode] 		= ktry;
+				data.w[nextmode] 		= 0.0;
+				data.f[nextmode] 		= 0.0;
+				data.period[nextmode] 	= 0.0;
+				data.mode_SSR[nextmode]	= 0.0;	
+				data.mode[nextmode] 	= NULL;	
+			}
+			nextmode++;	
 			data.mode_done++;
 		}
 	
@@ -618,7 +609,7 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 		//STEP 6b: for realistic models, use overlap c0 to indicate numerical error
 		//  this logic is not workign very well yet
 		if(data.error[error::isC0]){
-			int testK = (l_list[j]==1 ? 1 : 0);
+			int testK = (*lt==1 ? 1 : 0);
 			MODE *testmode;
 			bool containsK=false;
 			int indexK = 0;
@@ -631,7 +622,7 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 			if(containsK) testmode = static_cast<MODE*>(data.mode[indexK]);
 			//if not, make one
 			else {
-				testmode = new MODE(testK,l_list[j],0,data.driver);
+				testmode = new MODE(testK,*lt,0,data.driver);
 			}
 			bool correctTest = (testmode->modeOrder() == testK);
 			for(int i=enext;i<data.mode_done; i++){
@@ -653,9 +644,10 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 		}
 		//STEP 6d: for certain polytrope frequencies, we can compare to tables in JCD-DJM paper
 		if(data.error[error::isJCD]) {
+			double polytrope_index = data.input_params[0];
 			for(int i=enext;i<data.mode_done; i++){
 				if((data.l[i]==1 | data.l[i]==2 | data.l[i]==3) & (data.k[i]>0 & data.k[i]<36))
-					data.err[e][i] = compare_JCD(index, data.l[i], data.k[i], data.w[i]);
+					data.err[e][i] = compare_JCD(polytrope_index, data.l[i], data.k[i], data.w[i]);
 				else data.err[e][i] = nan("");
 			}
 			e++;
@@ -664,7 +656,8 @@ template <class MODEDRIVER> int mode_finder(CalculationOutputData &data){
 		//  will calculate a Newtonian polytrope, then try to match the corresponding mode
 		//  this will only try to match it once, using the 1PN frequency to start
 		if(data.error[error::comp1PN]){
-			Polytrope *star0PN = new Polytrope(1.0,1.0, index, data.Ngrid);
+			double polytrope_index = data.input_params[0];
+			Polytrope *star0PN = new Polytrope(1.0,1.0, polytrope_index, data.Ngrid);
 			NonradialModeDriver *drv0PN = new NonradialModeDriver(star0PN, data.adiabatic_index);
 			const int nn = NonradialModeDriver::num_var;
 			Mode<nn> *testmode;

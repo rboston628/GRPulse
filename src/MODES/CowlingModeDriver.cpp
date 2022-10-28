@@ -136,7 +136,7 @@ void CowlingModeDriver::setupBoundaries() {
 }
 
 int CowlingModeDriver::CentralBC(double **ymode, double *y0, double omeg2, int l, int m){	
-	double yy[num_var][central_bc_order/2+1];//0,2,4
+	double yy[num_var][BC_C/2+1];//0,2,4
 	//the zero-order terms are simple
 	yy[0][0] = y0[0];
 	yy[1][0] = y0[0]*C[0]*omeg2/double(l);
@@ -175,7 +175,7 @@ int CowlingModeDriver::CentralBC(double **ymode, double *y0, double omeg2, int l
 
 int CowlingModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int l, int m){
 	//specify initial conditions at surface
-	double yy[num_var][surface_bc_order+1];	//coefficients y = yy[0] + yy[1]t + ... + yy[k]t^k
+	double yy[num_var][BC_S+1];	//coefficients y = yy[0] + yy[1]t + ... + yy[k]t^k
 	double yyn[num_var]; for(int i=0;i<num_var;i++) yyn[i]=0.0;
 	yy[0][0] = ys[0];
 	yy[1][0] = ys[0];
@@ -204,6 +204,17 @@ int CowlingModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int l
 		yy[0][k+1] = (double(k+l+1)*yy[0][k] - sumG - sumV)/double(k+1);
 		yy[1][k+1] = (double(k+l-3)*yy[1][k] - sumC + sumA + sumU)/double(k+1);
 	}
+	//if n<1, then an additional term is needed
+	
+	/*if(k_surface != 0.0){
+		//find k using the ridiculous formulas A13,A14 from JCD-DJM
+		double n=0.0;
+		double Gam1 = adiabatic_index;
+		double kn = pow(k_surface, n);
+		double tripn = -3.*kn*ys[0]/(2.*n+1.);
+		yyn[0] = -tripn/Gam1;
+		yyn[1] = (3.*kn*ys[1] + (n-(n+1.)/Gam1)*tripn)/(n+1.);
+	}*/
 	//the number of terms to calculate
 	int start = len-2;
 	double t;
@@ -213,6 +224,7 @@ int CowlingModeDriver::SurfaceBC(double **ymode, double *ys, double omeg2, int l
 		for(int i=0; i<num_var; i++){
 			ymode[i][X] = yy[i][0];
 			for(int k=1; k<=surface_bc_order; k++) ymode[i][X] += yy[i][k]*pow(t,k);
+			//ymode[i][X] += yyn[i]*pow(t, n+1);
 		}
 	}
 	return start;

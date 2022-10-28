@@ -57,23 +57,33 @@ int read_input(char input_file_name[128], CalculationInputData &calcdata){
 	//read the type of physics to be used in calculation
 	fscanf(input_file, "Model: %s\t", input_buffer);
 	instring = std::string(input_buffer);
-	if(!instring.compare("newtonian")) calcdata.regime = regime::PN0;
-	else if(!instring.compare("1pn"))  calcdata.regime = regime::PN1;
-	else if(!instring.compare("gr"))   calcdata.regime = regime::GR;
-	else{
+	bool valid = false;
+	for(int r= 0; r!=regime::end; r++){
+		if(!instring.compare(regime::names[r])) {
+			calcdata.regime = (regime::Regime)r;
+			valid = true;	
+		}
+	}
+	if(!valid){
 		printf("error in input method of physical regime\n");
 		return 1;
 	}
 	//read the background stellar model to be used in calculation
 	fscanf(input_file, "%s\t", input_buffer);
 	instring = std::string(input_buffer);
-	if(!instring.compare("polytrope")) calcdata.model = model::polytrope;
-	else if(!instring.compare("CHWD")) calcdata.model = model::CHWD;
-	else if(!instring.compare("MESA")) calcdata.model = model::MESA;
-	else {
+	valid = false;
+	for(int m=0; m!=model::end; m++){
+		if(instring==model::names[m]){
+			calcdata.model = (model::StellarModel)m;
+			valid = true;
+		}
+	}
+	if(!valid){
 		printf("Error in input: stellar model type not recognized or unsupported\n");
 		return 1;
 	}
+	
+	//read_stellar_input<calcdata.regime, calcdata.model>(calcdata);
 	
 	//handle the use of different parameters that help construct the stellar model
 	//POLYTROPE INPUT
@@ -132,8 +142,23 @@ int read_input(char input_file_name[128], CalculationInputData &calcdata){
 		calcdata.input_params = new double[calcdata.num_input_params];
 		fscanf(input_file, " %lf", &calcdata.input_params[0]);	//read in the central y value
 		printf("y0=%lf\n", calcdata.input_params[0]);
-		fscanf(input_file, " %lf", &calcdata.input_params[1]);	//read in the central y value
-		printf("mue = %lf\n", calcdata.input_params[1]);
+		//read in an integer designating the chemical composition to use for mu
+		fscanf(input_file, " %lf", &calcdata.input_params[1]);
+		switch((int) calcdata.input_params[1]){
+			case 0:
+				printf("standard Chandrasekhar WD\n");
+				break;
+			case 1:
+				printf("using logistic composition\n");
+				break;
+			case 2:
+				printf("making simple neutron star\n");
+				break;
+			default:
+				printf("you entered an invalid number... going to make standard WD\n");
+				calcdata.input_params[1] = 0;
+				break;
+		}
 		fscanf(input_file, "%lf\n", &calcdata.input_params[2]);	//read in the grid size
 		calcdata.Ngrid = int(calcdata.input_params[2]);
 	}
@@ -224,27 +249,20 @@ int echo_input(CalculationInputData &calcdata){
 	}
 	fprintf(output_file, "Name:\t%s\n", calcdata.calcname.c_str());
 	fprintf(output_file, "Model:\t");
-	switch(calcdata.regime){
-		case regime::PN0:
-			fprintf(output_file, "newtonian ");
-			break;
-		case regime::PN1:
-			fprintf(output_file, "1pn ");
-			break;
-		case regime::GR:
-			fprintf(output_file, "gr ");
-			break;
-	}
+	fprintf(output_file, "%s ", regime::names[calcdata.regime]);	
+
 	switch(calcdata.model){
 		case model::polytrope:
 			fprintf(output_file, "polytrope %0.2lf ", calcdata.input_params[0]);
 			break;
 		case model::CHWD:
-			fprintf(output_file, "CHWD %lf %lf ", calcdata.input_params[0], calcdata.input_params[1]);
+			fprintf(output_file, "CHWD %.6lf %d ", calcdata.input_params[0], (int)calcdata.input_params[1]);
 			break;
 		case model::MESA:
 			fprintf(output_file, "MESA %s ", calcdata.str_input_param.c_str());
 			break;
+		default:
+			return 1;
 	}
 	fprintf(output_file, "%d\n", calcdata.Ngrid);
 	
@@ -352,15 +370,15 @@ int setup_output(CalculationInputData &data_in, CalculationOutputData &data_out)
 	//if the star is a realistic model, use overlap c_0 to estimate mode error
 	data_out.error[error::isC0  ] = ((data_out.model==model::MESA));
 	//if it is a polytrope with n=0, use the Pekeris formula to compare
-	data_out.error[error::isIsopycnic] = ((data_out.model==model::polytrope) & (data_out.input_params[0]==0.0));
+	data_out.error[error::isIsopycnic] = ((data_out.model==model::polytrope) && (data_out.input_params[0]==0.0));
 	//if it is a Newtonian polytrope with Gamma=5/3 and n=1.5,3,4, then compare to JCD-DJM
-	data_out.error[error::isJCD] = (data_out.model==model::polytrope) &
-		(data_out.regime==regime::PN0) &
-		(data_out.input_params[0]==1.5 | data_out.input_params[0]==3.0 | data_out.input_params[0]==4.0) &
+	data_out.error[error::isJCD] = (data_out.model==model::polytrope) &&
+		(data_out.regime==regime::PN0) &&
+		(data_out.input_params[0]==1.5 || data_out.input_params[0]==3.0 || data_out.input_params[0]==4.0) &&
 		(fabs(data_out.adiabatic_index - 5./3.)<1.e-5);
 	//if it is a 1PN/GR polytrope, compare to a Newtonian polytrope
 	data_out.error[error::comp1PN] = (data_out.model==model::polytrope) 
-					& (data_out.regime==regime::PN1 | data_out.regime==regime::GR);
+					&& (data_out.regime==regime::PN1 || data_out.regime==regime::GR);
 	//count the number of pertinent errors
 	for(int e=0; e<error::numerror; e++)
 		if(data_out.error[e]) data_out.i_err++;
@@ -402,25 +420,29 @@ int write_stellar_output(CalculationOutputData& calcdata){
 	char r[256],s[256],m[256];
 	switch(calcdata.regime){
 		case regime::PN0:
-		sprintf(r,"Newtonian (0PN)");
-		break;
+			sprintf(r,"Newtonian (0PN)");
+			break;
 		case regime::PN1:
-		sprintf(r,"Post-Newtonian (1PN)");
-		break;
+			sprintf(r,"Post-Newtonian (1PN)");
+			break;
 		case regime::GR:
-		sprintf(r,"General Relativistic (GR)");
-		break;
+			sprintf(r,"General Relativistic (GR)");
+			break;
+		default:
+			return 1;
 	}
 	switch(calcdata.model){
 		case model::polytrope:
-		sprintf(s,"Polytropic Star");
-		break;
+			sprintf(s,"Polytropic Star");
+			break;
 		case model::CHWD:
-		sprintf(s,"Chandrasekhar WD");
-		break;
+			sprintf(s,"Chandrasekhar WD");
+			break;
 		case model::MESA:
-		sprintf(s,"MESA model");
-		break;
+			sprintf(s,"MESA model");
+			break;
+		default:
+			return 1;
 	}
 	switch(calcdata.modetype){
 		case modetype::radial:
@@ -435,12 +457,14 @@ int write_stellar_output(CalculationOutputData& calcdata){
 		case modetype::quasinormal:
 			sprintf(m,"Quasinormal");
 			break;
+		default:
+			return 1;
 	}	
 	char splashy[1100];
 	sprintf(splashy, "%s %s with %s %s Pulsations", r, s, r, m);
 	print_splash(output_file, splashy, WIDTH);
 	
-	//printf the background model data
+	//print the background model data
 	fprintf(output_file, "# Stellar Background Model:\t" );
 	char outstring[128];
 	switch(calcdata.regime){
@@ -450,9 +474,10 @@ int write_stellar_output(CalculationOutputData& calcdata){
 		case regime::PN1:
 			fprintf(output_file, "Post-Newtonian ");
 			break;
-		case  regime::GR:
+		case regime::GR:
 			fprintf(output_file, "Relativistic ");
 			break;
+		default: return 1;
 	}
 	switch(calcdata.model){
 		case model::polytrope:
@@ -464,6 +489,8 @@ int write_stellar_output(CalculationOutputData& calcdata){
 		case model::MESA:
 			fprintf(output_file, "MESA model %s.dat", calcdata.str_input_param.c_str());
 			break;
+		default:
+			return 1;
 	}
 	fprintf(output_file, "\n");
 	fprintf(output_file, "#                          \tnumber of grid points = %d\n", calcdata.Ngrid);
@@ -631,9 +658,8 @@ void print_splash(FILE* output_file, char* title, int WIDTH){
 }
 
 
-//NOTE: this function has a problem and will always cause a seg fault
 int write_tidal_overlap(CalculationOutputData& calcdata){
-	printf("Writing tidal overlap coefficients...\n");fflush(stdout);
+/*	printf("Writing tidal overlap coefficients...\n");fflush(stdout);
 	//open file to write output summary
 	char output_file_name[128];
 	sprintf(output_file_name, "./output/%s/tidal_overlap.txt", calcdata.calcname.c_str());
@@ -669,7 +695,6 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 	int l_list[num];
 	printf("\tpreparing mode list...\t");
 	l_list[0] = calcdata.l[0];
-	printf("\n");
 	for(int j=1; j<num; j++){
 		int l_current = calcdata.l[j];
 		if(l_current == l_list[lastl]) continue;
@@ -690,7 +715,6 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 		//find min, max
 		if(l_current < minl) minl=l_current;
 		if(l_current > maxl) maxl=l_current;
-
 	}
 	//extra increment to align with zero-indexing
 	lastl++;
@@ -820,13 +844,12 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 	}
 	printf("\tdone\n");
 	
-	printf("\tcalculating overlap and c0...\t");fflush(stdout);
+	printf("\tcalculating overlap and c0...\t");
 	fprintf(output_file, "#l,k \tmodeid\tomega^2 (GM/r^3)  \tdimensionless overlap \tc0\n");
 	for(int j=0; j<WIDTH; j++) fprintf(output_file, "#");
-	fprintf(output_file, "\n");fflush(output_file);
+	fprintf(output_file, "\n");
 	int ll=l_list[0];
 	for(int j=0; j<calcdata.mode_done; j++){
-		if(calcdata.w[j]==0) continue;
 		if(calcdata.l[j]<2) continue;
 		//print the mode numbers L,K
 		fprintf(output_file, " %d,%d \t", calcdata.l[j], calcdata.k[j]);
@@ -838,11 +861,11 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 			fprintf(output_file, "unable to find mode\n");
 			continue;
 		}
-		fprintf(output_file, "%0.12le \t", sqrt(calcdata.mode[j]->getOmega2())); fflush(output_file);
-		fprintf(output_file, "%3.16le \t", fabs(calcdata.mode[j]->tidal_overlap())); fflush(output_file);
-		fprintf(output_file, "%0.12le \n", 
+		fprintf(output_file, "%0.12le \t%3.16le \t%0.12le \n", 
+			sqrt(calcdata.mode[j]->getOmega2()), 
+			fabs(calcdata.mode[j]->tidal_overlap()),
 			fabs(calcdata.driver->innerproduct(calcdata.mode[j],fmode[jforl[calcdata.l[j]]]))
-		); 
+		);
 		fflush(output_file);
 	}
 	fclose(output_file);
@@ -850,6 +873,6 @@ int write_tidal_overlap(CalculationOutputData& calcdata){
 		delete fmode[j];
 	}
 	printf("\tdone\n");
-	printf("done!\n");
+	printf("done!\n");//*/
 	return 0;
 }

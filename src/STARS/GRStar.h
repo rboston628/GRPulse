@@ -22,7 +22,7 @@ public:
 	virtual double gθθ(int )=0, dgθθdr(int )=0;
 	//the special functions from Schwarzschild metric
 	virtual double Nu(int) =0, dNudr(int) =0, d2Nudr2(int) =0;
-	virtual double Lambda(int) =0, dLambdadr(int) =0, d2Lambdadr2(int) =0;;
+	virtual double Lambda(int) =0, dLambdadr(int) =0, d2Lambdadr2(int) =0;
 	//define these in case of typing mixups
 	double grt(int X){ return gtr(X);};
 	double dgrtdr(int X) {return dgtrdr(X);};

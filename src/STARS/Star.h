@@ -61,6 +61,8 @@ public:
 	//print relevant values of the star in .txt and gnuplot
 	virtual void writeStar(char *c = NULL);
 	virtual void printStar(char *c = NULL);
+	virtual void printBV(  char *c = NULL, double const gam1=0.0);
+	virtual void printCoefficients(char *c = NULL, double const gam1=0.0);
 	virtual double SSR();
 	
 	//allow Modes to access private members of Star
